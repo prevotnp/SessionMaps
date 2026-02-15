@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { X, Plus, Trash2, Save, Undo2, Route as RouteIcon, MapPin, Mountain, Ruler, Clock } from 'lucide-react';
+import { X, Plus, Trash2, Save, Undo2, Route as RouteIcon, MapPin, Mountain, Ruler, Clock, Move } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -54,11 +54,17 @@ export default function CesiumRouteBuilder({
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [waypoints, setWaypoints] = useState<WaypointData[]>([]);
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const entitiesRef = useRef<any[]>([]);
   const polylineEntityRef = useRef<any>(null);
   const handlerRef = useRef<any>(null);
+  const waypointsRef = useRef<WaypointData[]>([]);
 
   const Cesium = (window as any).Cesium;
+
+  useEffect(() => {
+    waypointsRef.current = waypoints;
+  }, [waypoints]);
 
   const removeAllEntities = useCallback(() => {
     if (!viewer || viewer.isDestroyed()) return;
@@ -93,15 +99,17 @@ export default function CesiumRouteBuilder({
     viewer.scene.requestRender();
   }, [viewer, Cesium]);
 
-  const addWaypointEntity = useCallback((wp: WaypointData, index: number) => {
+  const addWaypointEntity = useCallback((wp: WaypointData, index: number, isSelected: boolean = false) => {
     if (!viewer || !Cesium || viewer.isDestroyed()) return;
     const entity = viewer.entities.add({
       position: wp.cartesian,
       point: {
-        pixelSize: 12,
-        color: Cesium.Color.fromCssColorString('#FF6B35'),
+        pixelSize: isSelected ? 16 : 12,
+        color: isSelected
+          ? Cesium.Color.fromCssColorString('#00FF88')
+          : Cesium.Color.fromCssColorString('#FF6B35'),
         outlineColor: Cesium.Color.WHITE,
-        outlineWidth: 2,
+        outlineWidth: isSelected ? 3 : 2,
         heightReference: Cesium.HeightReference.NONE,
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
@@ -117,13 +125,14 @@ export default function CesiumRouteBuilder({
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
     });
+    entity._waypointIndex = index;
     entitiesRef.current.push(entity);
     viewer.scene.requestRender();
   }, [viewer, Cesium]);
 
-  const rebuildEntities = useCallback((wps: WaypointData[]) => {
+  const rebuildEntities = useCallback((wps: WaypointData[], selectedIdx: number | null = null) => {
     removeAllEntities();
-    wps.forEach((wp, i) => addWaypointEntity(wp, i));
+    wps.forEach((wp, i) => addWaypointEntity(wp, i, i === selectedIdx));
     updatePolyline(wps);
   }, [removeAllEntities, addWaypointEntity, updatePolyline]);
 
@@ -142,6 +151,23 @@ export default function CesiumRouteBuilder({
     return { totalDistance, elevationGain, elevationLoss, estimatedTime };
   }, [Cesium]);
 
+  const findClickedWaypointIndex = useCallback((clickPosition: any): number | null => {
+    if (!viewer || !Cesium || viewer.isDestroyed()) return null;
+    const picked = viewer.scene.pick(clickPosition);
+    if (!picked || !picked.id) return null;
+    const entity = picked.id;
+    if (typeof entity._waypointIndex === 'number') {
+      return entity._waypointIndex;
+    }
+    return null;
+  }, [viewer, Cesium]);
+
+  const pickPositionOnTileset = useCallback((screenPosition: any): any | null => {
+    if (!viewer || !Cesium || viewer.isDestroyed()) return null;
+    const position = viewer.scene.pickPosition(screenPosition);
+    return position || null;
+  }, [viewer, Cesium]);
+
   useEffect(() => {
     if (!isOpen || !viewer || !Cesium || viewer.isDestroyed()) return;
 
@@ -149,14 +175,50 @@ export default function CesiumRouteBuilder({
     handlerRef.current = handler;
 
     handler.setInputAction((click: any) => {
-      let position: any = null;
-      const picked = viewer.scene.pick(click.position);
-      if (picked && Cesium.defined(picked)) {
-        position = viewer.scene.pickPosition(click.position);
+      const currentDragging = draggingIndex;
+
+      if (currentDragging !== null) {
+        const position = pickPositionOnTileset(click.position);
+        if (!position) return;
+
+        const carto = Cesium.Cartographic.fromCartesian(position);
+        const lng = Cesium.Math.toDegrees(carto.longitude);
+        const lat = Cesium.Math.toDegrees(carto.latitude);
+        const elevation = carto.height;
+
+        setWaypoints((prev) => {
+          const updated = [...prev];
+          updated[currentDragging] = {
+            ...updated[currentDragging],
+            lngLat: [lng, lat],
+            elevation,
+            cartesian: position,
+          };
+          rebuildEntities(updated, null);
+          return updated;
+        });
+        setDraggingIndex(null);
+        viewer.scene.screenSpaceCameraController.enableRotate = true;
+        viewer.scene.screenSpaceCameraController.enableTranslate = true;
+        viewer.scene.screenSpaceCameraController.enableZoom = true;
+        viewer.scene.screenSpaceCameraController.enableTilt = true;
+        viewer.scene.screenSpaceCameraController.enableLook = true;
+        return;
       }
-      if (!position) {
-        position = viewer.scene.pickPosition(click.position);
+
+      const clickedIdx = findClickedWaypointIndex(click.position);
+      if (clickedIdx !== null) {
+        setDraggingIndex(clickedIdx);
+        rebuildEntities(waypointsRef.current, clickedIdx);
+        viewer.scene.screenSpaceCameraController.enableRotate = false;
+        viewer.scene.screenSpaceCameraController.enableTranslate = false;
+        viewer.scene.screenSpaceCameraController.enableZoom = false;
+        viewer.scene.screenSpaceCameraController.enableTilt = false;
+        viewer.scene.screenSpaceCameraController.enableLook = false;
+        return;
       }
+
+      const position = pickPositionOnTileset(click.position);
       if (!position) return;
 
       const carto = Cesium.Cartographic.fromCartesian(position);
@@ -181,11 +243,42 @@ export default function CesiumRouteBuilder({
       });
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
+    handler.setInputAction((movement: any) => {
+      if (draggingIndex === null) return;
+
+      const position = pickPositionOnTileset(movement.endPosition);
+      if (!position) return;
+
+      const carto = Cesium.Cartographic.fromCartesian(position);
+      const lng = Cesium.Math.toDegrees(carto.longitude);
+      const lat = Cesium.Math.toDegrees(carto.latitude);
+      const elevation = carto.height;
+
+      setWaypoints((prev) => {
+        const updated = [...prev];
+        updated[draggingIndex] = {
+          ...updated[draggingIndex],
+          lngLat: [lng, lat],
+          elevation,
+          cartesian: position,
+        };
+        rebuildEntities(updated, draggingIndex);
+        return updated;
+      });
+    }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+
     return () => {
       handler.destroy();
       handlerRef.current = null;
+      if (viewer && !viewer.isDestroyed()) {
+        viewer.scene.screenSpaceCameraController.enableRotate = true;
+        viewer.scene.screenSpaceCameraController.enableTranslate = true;
+        viewer.scene.screenSpaceCameraController.enableZoom = true;
+        viewer.scene.screenSpaceCameraController.enableTilt = true;
+        viewer.scene.screenSpaceCameraController.enableLook = true;
+      }
     };
-  }, [isOpen, viewer, Cesium, addWaypointEntity, updatePolyline]);
+  }, [isOpen, viewer, Cesium, draggingIndex, addWaypointEntity, updatePolyline, rebuildEntities, findClickedWaypointIndex, pickPositionOnTileset]);
 
   useEffect(() => {
     if (!isOpen || !editingRoute || !Cesium) return;
@@ -222,6 +315,7 @@ export default function CesiumRouteBuilder({
       setWaypoints([]);
       setName('');
       setDescription('');
+      setDraggingIndex(null);
     }
   }, [isOpen, removeAllEntities]);
 
@@ -236,6 +330,7 @@ export default function CesiumRouteBuilder({
   }, [removeAllEntities]);
 
   const handleDeleteWaypoint = useCallback((index: number) => {
+    setDraggingIndex(null);
     setWaypoints((prev) => {
       const updated = prev.filter((_, i) => i !== index);
       rebuildEntities(updated);
@@ -244,6 +339,7 @@ export default function CesiumRouteBuilder({
   }, [rebuildEntities]);
 
   const handleUndoLast = useCallback(() => {
+    setDraggingIndex(null);
     setWaypoints((prev) => {
       if (prev.length === 0) return prev;
       const updated = prev.slice(0, -1);
@@ -253,9 +349,22 @@ export default function CesiumRouteBuilder({
   }, [rebuildEntities]);
 
   const handleClearAll = useCallback(() => {
+    setDraggingIndex(null);
     setWaypoints([]);
     removeAllEntities();
   }, [removeAllEntities]);
+
+  const handleCancelDrag = useCallback(() => {
+    setDraggingIndex(null);
+    rebuildEntities(waypointsRef.current, null);
+    if (viewer && !viewer.isDestroyed()) {
+      viewer.scene.screenSpaceCameraController.enableRotate = true;
+      viewer.scene.screenSpaceCameraController.enableTranslate = true;
+      viewer.scene.screenSpaceCameraController.enableZoom = true;
+      viewer.scene.screenSpaceCameraController.enableTilt = true;
+      viewer.scene.screenSpaceCameraController.enableLook = true;
+    }
+  }, [rebuildEntities, viewer]);
 
   const handleWaypointNameChange = useCallback((index: number, newName: string) => {
     setWaypoints((prev) =>
@@ -380,6 +489,26 @@ export default function CesiumRouteBuilder({
           </div>
         </div>
 
+        {draggingIndex !== null && (
+          <div className="bg-green-500/10 border border-green-400/30 rounded-md px-3 py-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-green-300 text-xs font-medium">
+                <Move className="w-3.5 h-3.5" />
+                <span>Moving Waypoint {draggingIndex + 1}</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-5 px-2 text-[10px] text-green-300 hover:text-white hover:bg-white/10"
+                onClick={handleCancelDrag}
+              >
+                Cancel
+              </Button>
+            </div>
+            <p className="text-green-200/60 text-[10px] mt-1">Click on the 3D map to place it</p>
+          </div>
+        )}
+
         <div>
           <div className="flex items-center justify-between mb-2">
             <label className="text-white/70 text-xs font-medium flex items-center gap-1">
@@ -420,9 +549,15 @@ export default function CesiumRouteBuilder({
               {waypoints.map((wp, index) => (
                 <div
                   key={index}
-                  className="bg-white/5 rounded-md px-2.5 py-2 flex items-start gap-2"
+                  className={`rounded-md px-2.5 py-2 flex items-start gap-2 transition-colors ${
+                    draggingIndex === index
+                      ? 'bg-green-500/15 border border-green-400/30'
+                      : 'bg-white/5'
+                  }`}
                 >
-                  <span className="text-[#FF6B35] font-bold text-xs mt-1 min-w-[16px]">
+                  <span className={`font-bold text-xs mt-1 min-w-[16px] ${
+                    draggingIndex === index ? 'text-green-400' : 'text-[#FF6B35]'
+                  }`}>
                     {index + 1}
                   </span>
                   <div className="flex-1 min-w-0">
