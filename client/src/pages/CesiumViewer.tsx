@@ -95,6 +95,7 @@ export default function CesiumViewer() {
   const [measureDistance, setMeasureDistance] = useState<number | null>(null);
   const [gpsActive, setGpsActive] = useState(false);
   const [gpsPosition, setGpsPosition] = useState<{ lat: number; lng: number; alt: number | null } | null>(null);
+  const [mapOverlayActive, setMapOverlayActive] = useState(false);
 
   const [isRouteBuilderOpen, setIsRouteBuilderOpen] = useState(false);
   const [isRoutesListOpen, setIsRoutesListOpen] = useState(false);
@@ -458,6 +459,33 @@ export default function CesiumViewer() {
     }
   }, []);
 
+  const toggleMapOverlay = useCallback(async () => {
+    if (!viewerRef.current) return;
+    const mapboxToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+    if (!mapboxToken) return;
+    const viewer = viewerRef.current;
+    const C = await loadCesium();
+    const newState = !mapOverlayActive;
+    setMapOverlayActive(newState);
+
+    if (newState) {
+      const mapboxProvider = new C.UrlTemplateImageryProvider({
+        url: `https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/tiles/512/{z}/{x}/{y}@2x?access_token=${mapboxToken}`,
+        minimumLevel: 0,
+        maximumLevel: 22,
+        tileWidth: 512,
+        tileHeight: 512,
+        credit: new C.Credit('Mapbox'),
+      });
+      viewer.imageryLayers.addImageryProvider(mapboxProvider);
+      viewer.scene.globe.show = true;
+    } else {
+      viewer.imageryLayers.removeAll();
+      viewer.scene.globe.show = false;
+    }
+    viewer.scene.requestRender();
+  }, [mapOverlayActive]);
+
   useEffect(() => {
     return () => {
       if (watchIdRef.current !== null) {
@@ -612,6 +640,16 @@ export default function CesiumViewer() {
           >
             <MapPin className="w-5 h-5 mb-0.5 text-blue-400" />
             <span className="text-[10px] font-medium leading-tight text-center whitespace-pre-line">{'Go to\nGPS'}</span>
+          </button>
+        )}
+
+        {import.meta.env.VITE_MAPBOX_ACCESS_TOKEN && (
+          <button
+            className={`flex flex-col items-center justify-center w-16 h-16 rounded-lg bg-gray-900/80 border text-white hover:bg-gray-800 transition-colors ${mapOverlayActive ? 'ring-2 ring-emerald-400 border-emerald-400' : 'border-white/20'}`}
+            onClick={toggleMapOverlay}
+          >
+            <Layers className={`w-5 h-5 mb-0.5 ${mapOverlayActive ? 'text-emerald-400' : ''}`} />
+            <span className="text-[10px] font-medium leading-tight text-center whitespace-pre-line">{'Map\nOverlay'}</span>
           </button>
         )}
 
