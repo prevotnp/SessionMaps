@@ -572,97 +572,87 @@ export default function CesiumViewer() {
         </div>
       </div>
 
-      <div className="absolute top-4 right-4 z-40 flex flex-col gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          className={`h-9 px-3 bg-gray-900/80 border-white/20 text-white hover:bg-gray-800 ${isRouteBuilderOpen ? 'ring-2 ring-green-400 border-green-400' : ''}`}
+      <div className="absolute top-4 right-4 z-40 flex flex-col gap-1.5 items-end">
+        <button
+          className={`flex flex-col items-center justify-center w-14 h-14 rounded-lg bg-gray-900/80 border text-white hover:bg-gray-800 transition-colors ${isRouteBuilderOpen ? 'ring-2 ring-green-400 border-green-400' : 'border-white/20'}`}
           onClick={handleOpenRouteBuilder}
         >
-          <RouteIcon className={`w-4 h-4 mr-2 ${isRouteBuilderOpen ? 'text-green-400' : ''}`} />
-          New Route
-        </Button>
+          <RouteIcon className={`w-5 h-5 mb-0.5 ${isRouteBuilderOpen ? 'text-green-400' : ''}`} />
+          <span className="text-[9px] font-medium leading-tight text-center">New{'\n'}Route</span>
+        </button>
 
-        <Button
-          variant="outline"
-          size="sm"
-          className={`h-9 px-3 bg-gray-900/80 border-white/20 text-white hover:bg-gray-800 ${isRoutesListOpen ? 'ring-2 ring-blue-400 border-blue-400' : ''}`}
+        <button
+          className={`flex flex-col items-center justify-center w-14 h-14 rounded-lg bg-gray-900/80 border text-white hover:bg-gray-800 transition-colors ${isRoutesListOpen ? 'ring-2 ring-blue-400 border-blue-400' : 'border-white/20'}`}
           onClick={() => setIsRoutesListOpen(!isRoutesListOpen)}
         >
-          <List className={`w-4 h-4 mr-2 ${isRoutesListOpen ? 'text-blue-400' : ''}`} />
-          Existing Routes
-        </Button>
+          <List className={`w-5 h-5 mb-0.5 ${isRoutesListOpen ? 'text-blue-400' : ''}`} />
+          <span className="text-[9px] font-medium leading-tight text-center">Existing{'\n'}Routes</span>
+        </button>
 
-        <Button
-          variant="outline"
-          size="sm"
-          className={`h-9 px-3 bg-gray-900/80 border-white/20 text-white hover:bg-gray-800 ${isMeasuring ? 'ring-2 ring-orange-400 border-orange-400' : ''}`}
+        <button
+          className={`flex flex-col items-center justify-center w-14 h-14 rounded-lg bg-gray-900/80 border text-white hover:bg-gray-800 transition-colors ${isMeasuring ? 'ring-2 ring-orange-400 border-orange-400' : 'border-white/20'}`}
           onClick={handleMeasureClick}
         >
-          {isMeasuring ? <X className="w-4 h-4 mr-2" /> : <Ruler className="w-4 h-4 mr-2" />}
-          Measure
-        </Button>
+          {isMeasuring ? <X className="w-5 h-5 mb-0.5" /> : <Ruler className="w-5 h-5 mb-0.5" />}
+          <span className="text-[9px] font-medium leading-tight text-center">Measure</span>
+        </button>
 
-        <Button
-          variant="outline"
-          size="sm"
-          className={`h-9 px-3 bg-gray-900/80 border-white/20 text-white hover:bg-gray-800 ${gpsActive ? 'ring-2 ring-blue-400 border-blue-400' : ''}`}
+        <button
+          className={`flex flex-col items-center justify-center w-14 h-14 rounded-lg bg-gray-900/80 border text-white hover:bg-gray-800 transition-colors ${gpsActive ? 'ring-2 ring-blue-400 border-blue-400' : 'border-white/20'}`}
           onClick={toggleGps}
         >
-          <Navigation className={`w-4 h-4 mr-2 ${gpsActive ? 'text-blue-400' : ''}`} />
-          My Location
-        </Button>
+          <Navigation className={`w-5 h-5 mb-0.5 ${gpsActive ? 'text-blue-400' : ''}`} />
+          <span className="text-[9px] font-medium leading-tight text-center">My{'\n'}Location</span>
+        </button>
 
         {gpsActive && gpsPosition && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-9 px-3 bg-gray-900/80 border-white/20 text-white hover:bg-gray-800"
+          <button
+            className="flex flex-col items-center justify-center w-14 h-14 rounded-lg bg-gray-900/80 border border-white/20 text-white hover:bg-gray-800 transition-colors"
             onClick={flyToGps}
           >
-            <MapPin className="w-4 h-4 mr-2 text-blue-400" />
-            Go to GPS
-          </Button>
+            <MapPin className="w-5 h-5 mb-0.5 text-blue-400" />
+            <span className="text-[9px] font-medium leading-tight text-center">Go to{'\n'}GPS</span>
+          </button>
         )}
+      </div>
 
-        <div className="border-t border-white/10 pt-2 flex flex-col gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            className="w-10 h-10 bg-gray-900/80 border-white/20 text-white hover:bg-gray-800"
-            onClick={zoomIn}
-            title="Zoom in"
-          >
-            <Plus className="w-5 h-5" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="w-10 h-10 bg-gray-900/80 border-white/20 text-white hover:bg-gray-800"
-            onClick={zoomOut}
-            title="Zoom out"
-          >
-            <Minus className="w-5 h-5" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="w-10 h-10 bg-gray-900/80 border-white/20 text-white hover:bg-gray-800"
-            onClick={resetView}
-            title="Reset view"
-          >
-            <RotateCcw className="w-5 h-5" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="w-10 h-10 bg-gray-900/80 border-white/20 text-white hover:bg-gray-800"
-            onClick={lookNorth}
-            title="Look north"
-          >
-            <Compass className="w-5 h-5" />
-          </Button>
-        </div>
+      <div className="absolute bottom-4 right-4 z-40 flex gap-1.5">
+        <Button
+          variant="outline"
+          size="icon"
+          className="w-9 h-9 bg-gray-900/80 border-white/20 text-white hover:bg-gray-800"
+          onClick={zoomIn}
+          title="Zoom in"
+        >
+          <Plus className="w-4 h-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="w-9 h-9 bg-gray-900/80 border-white/20 text-white hover:bg-gray-800"
+          onClick={zoomOut}
+          title="Zoom out"
+        >
+          <Minus className="w-4 h-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="w-9 h-9 bg-gray-900/80 border-white/20 text-white hover:bg-gray-800"
+          onClick={resetView}
+          title="Reset view"
+        >
+          <RotateCcw className="w-4 h-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="w-9 h-9 bg-gray-900/80 border-white/20 text-white hover:bg-gray-800"
+          onClick={lookNorth}
+          title="Look north"
+        >
+          <Compass className="w-4 h-4" />
+        </Button>
       </div>
 
       {isRouteBuilderOpen && viewerRef.current && tilesetId && (
