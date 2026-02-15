@@ -152,6 +152,7 @@ export const routes = pgTable("routes", {
   elevationLoss: decimal("elevation_loss", { precision: 10, scale: 2 }), // in meters
   estimatedTime: integer("estimated_time"), // in minutes
   routingMode: text("routing_mode").notNull().default("direct"), // 'direct', 'road', or 'rivers'
+  cesiumTilesetId: integer("cesium_tileset_id").references(() => cesium3dTilesets.id, { onDelete: 'set null' }),
   isPublic: boolean("is_public").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -499,6 +500,7 @@ export const insertRouteSchema = createInsertSchema(routes).pick({
   elevationLoss: true,
   estimatedTime: true,
   routingMode: true,
+  cesiumTilesetId: true,
   isPublic: true,
 }).extend({
   totalDistance: z.union([z.string(), z.number()]).transform(val => String(val)).optional().nullable(),
