@@ -15,8 +15,14 @@ import {
   Compass,
   Layers,
   X,
-  Maximize
+  Maximize,
+  Route as RouteIcon,
+  List,
+  Mountain
 } from 'lucide-react';
+import CesiumRouteBuilder from '@/components/CesiumRouteBuilder';
+import CesiumRouteSummaryPanel from '@/components/CesiumRouteSummaryPanel';
+import type { Route } from '@shared/schema';
 
 interface Cesium3dTileset {
   id: number;
@@ -92,7 +98,15 @@ export default function CesiumViewer() {
   const [gpsActive, setGpsActive] = useState(false);
   const [gpsPosition, setGpsPosition] = useState<{ lat: number; lng: number; alt: number | null } | null>(null);
 
+  const [isRouteBuilderOpen, setIsRouteBuilderOpen] = useState(false);
+  const [isRoutesListOpen, setIsRoutesListOpen] = useState(false);
+  const [viewingRoute, setViewingRoute] = useState<Route | null>(null);
+  const [editingRoute, setEditingRoute] = useState<Route | null>(null);
+
   const tilesetId = params?.id ? parseInt(params.id) : null;
+
+  const urlSearchParams = new URLSearchParams(window.location.search);
+  const routeIdFromUrl = urlSearchParams.get('routeId');
 
   const { data: tileset, isLoading: isFetching } = useQuery<Cesium3dTileset>({
     queryKey: ['/api/cesium-tilesets', tilesetId],
@@ -103,6 +117,24 @@ export default function CesiumViewer() {
     },
     enabled: !!tilesetId
   });
+
+  const { data: tilesetRoutes = [] } = useQuery<Route[]>({
+    queryKey: ['/api/routes'],
+    enabled: !!tilesetId && !!user,
+  });
+
+  const routesForThisTileset = tilesetRoutes.filter(
+    (r: any) => r.cesiumTilesetId === tilesetId
+  );
+
+  useEffect(() => {
+    if (routeIdFromUrl && tilesetRoutes.length > 0 && !viewingRoute && !isLoading) {
+      const routeToView = tilesetRoutes.find((r: Route) => r.id === parseInt(routeIdFromUrl));
+      if (routeToView) {
+        setViewingRoute(routeToView);
+      }
+    }
+  }, [routeIdFromUrl, tilesetRoutes, viewingRoute, isLoading]);
 
   useEffect(() => {
     if (!containerRef.current || !tileset) return;
@@ -436,6 +468,49 @@ export default function CesiumViewer() {
     };
   }, []);
 
+  const handleOpenRouteBuilder = useCallback(() => {
+    if (isMeasuring) handleMeasureClick();
+    setViewingRoute(null);
+    setEditingRoute(null);
+    setIsRoutesListOpen(false);
+    setIsRouteBuilderOpen(true);
+  }, [isMeasuring, handleMeasureClick]);
+
+  const handleRouteSaved = useCallback((route: Route) => {
+    setIsRouteBuilderOpen(false);
+    setEditingRoute(null);
+    setViewingRoute(route);
+  }, []);
+
+  const handleViewRoute = useCallback((route: Route) => {
+    setIsRoutesListOpen(false);
+    setIsRouteBuilderOpen(false);
+    setEditingRoute(null);
+    setViewingRoute(route);
+  }, []);
+
+  const handleEditRoute = useCallback((route: Route) => {
+    setViewingRoute(null);
+    setEditingRoute(route);
+    setIsRouteBuilderOpen(true);
+  }, []);
+
+  const handleCloseRouteView = useCallback(() => {
+    setViewingRoute(null);
+  }, []);
+
+  const handleCloseRouteBuilder = useCallback(() => {
+    setIsRouteBuilderOpen(false);
+    setEditingRoute(null);
+  }, []);
+
+  const formatRouteDistance = (d: string | number | null | undefined) => {
+    if (!d) return '—';
+    const m = typeof d === 'string' ? parseFloat(d) : d;
+    const miles = m / 1609.34;
+    return miles >= 0.1 ? `${miles.toFixed(2)} mi` : `${Math.round(m * 3.28084)} ft`;
+  };
+
   if (isFetching) {
     return (
       <div className="h-screen flex items-center justify-center bg-gray-900">
@@ -500,6 +575,26 @@ export default function CesiumViewer() {
       </div>
 
       <div className="absolute top-4 right-4 z-40 flex flex-col gap-2">
+        <Button
+          variant="outline"
+          size="icon"
+          className={`w-10 h-10 bg-gray-900/80 border-white/20 text-white hover:bg-gray-800 ${isRouteBuilderOpen ? 'ring-2 ring-green-400 border-green-400' : ''}`}
+          onClick={handleOpenRouteBuilder}
+          title="Build Route"
+        >
+          <RouteIcon className={`w-5 h-5 ${isRouteBuilderOpen ? 'text-green-400' : ''}`} />
+        </Button>
+
+        <Button
+          variant="outline"
+          size="icon"
+          className={`w-10 h-10 bg-gray-900/80 border-white/20 text-white hover:bg-gray-800 ${isRoutesListOpen ? 'ring-2 ring-blue-400 border-blue-400' : ''}`}
+          onClick={() => setIsRoutesListOpen(!isRoutesListOpen)}
+          title="View Routes"
+        >
+          <List className={`w-5 h-5 ${isRoutesListOpen ? 'text-blue-400' : ''}`} />
+        </Button>
+
         <Button
           variant="outline"
           size="icon"
@@ -571,6 +666,105 @@ export default function CesiumViewer() {
           </Button>
         </div>
       </div>
+
+      {isRouteBuilderOpen && viewerRef.current && tilesetId && (
+        <CesiumRouteBuilder
+          isOpen={isRouteBuilderOpen}
+          onClose={handleCloseRouteBuilder}
+          viewer={viewerRef.current}
+          cesiumTilesetId={tilesetId}
+          editingRoute={editingRoute}
+          onRouteSaved={handleRouteSaved}
+        />
+      )}
+
+      {viewingRoute && viewerRef.current && (
+        <CesiumRouteSummaryPanel
+          route={viewingRoute}
+          viewer={viewerRef.current}
+          onClose={handleCloseRouteView}
+          onEdit={handleEditRoute}
+          isOwner={viewingRoute.userId === user?.id}
+        />
+      )}
+
+      {isRoutesListOpen && (
+        <div className="absolute left-4 top-20 bottom-20 w-80 z-40 pointer-events-auto bg-gray-900/90 backdrop-blur-sm border border-white/20 rounded-lg overflow-hidden flex flex-col">
+          <div className="p-4 border-b border-white/10 flex items-center justify-between">
+            <h3 className="text-white font-semibold flex items-center gap-2">
+              <RouteIcon className="w-4 h-4" />
+              3D Routes ({routesForThisTileset.length})
+            </h3>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="w-8 h-8 text-white/60 hover:text-white hover:bg-white/10"
+              onClick={() => setIsRoutesListOpen(false)}
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            {routesForThisTileset.length === 0 ? (
+              <div className="text-center py-8">
+                <RouteIcon className="w-10 h-10 mx-auto mb-3 text-white/30" />
+                <p className="text-white/50 text-sm">No routes on this 3D map yet</p>
+                <Button
+                  size="sm"
+                  className="mt-3 bg-green-600 hover:bg-green-700 text-white"
+                  onClick={handleOpenRouteBuilder}
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Build First Route
+                </Button>
+              </div>
+            ) : (
+              routesForThisTileset.map((route: Route) => (
+                <div
+                  key={route.id}
+                  className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                    viewingRoute?.id === route.id
+                      ? 'border-orange-400/50 bg-orange-400/10'
+                      : 'border-white/10 hover:border-white/30 hover:bg-white/5'
+                  }`}
+                  onClick={() => handleViewRoute(route)}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-white text-sm font-medium truncate">{route.name}</h4>
+                      {route.description && (
+                        <p className="text-white/50 text-xs mt-0.5 truncate">{route.description}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 mt-2 text-white/40 text-xs">
+                    <span className="flex items-center gap-1">
+                      <Ruler className="w-3 h-3" />
+                      {formatRouteDistance(route.totalDistance)}
+                    </span>
+                    {route.elevationGain && parseFloat(String(route.elevationGain)) > 0 && (
+                      <span className="flex items-center gap-1">
+                        <Mountain className="w-3 h-3" />
+                        +{Math.round(parseFloat(String(route.elevationGain)) * 3.28084)} ft
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <div className="p-3 border-t border-white/10">
+            <Button
+              className="w-full bg-green-600 hover:bg-green-700 text-white"
+              size="sm"
+              onClick={handleOpenRouteBuilder}
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Build New Route
+            </Button>
+          </div>
+        </div>
+      )}
 
       {tilesLoading && !isLoading && !error && (
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 pointer-events-none">

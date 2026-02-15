@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import { useLocation } from 'wouter';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Route as RouteIcon, Map, Clock, Ruler, Mountain, X, UserPlus, Trash2, Share2 } from 'lucide-react';
+import { Route as RouteIcon, Map, Clock, Ruler, Mountain, X, UserPlus, Trash2, Share2, Box } from 'lucide-react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Route } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -31,6 +32,7 @@ interface ShareInfo {
 
 const RoutesModal: React.FC<RoutesModalProps> = ({ isOpen, onClose, onSelectRoute, onDisplayAllRoutes }) => {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [selectedRouteForSharing, setSelectedRouteForSharing] = useState<RouteWithSharing | null>(null);
   const [friendUsername, setFriendUsername] = useState('');
@@ -155,6 +157,11 @@ const RoutesModal: React.FC<RoutesModalProps> = ({ isOpen, onClose, onSelectRout
   };
 
   const handleRouteClick = (route: Route) => {
+    if ((route as any).cesiumTilesetId) {
+      navigate(`/cesium/${(route as any).cesiumTilesetId}?routeId=${route.id}`);
+      onClose();
+      return;
+    }
     onSelectRoute(route);
     onClose();
   };
@@ -204,6 +211,12 @@ const RoutesModal: React.FC<RoutesModalProps> = ({ isOpen, onClose, onSelectRout
           <div className="flex-1">
             <div className="flex items-center gap-2">
               <h3 className="font-semibold text-lg">{route.name}</h3>
+              {(route as any).cesiumTilesetId && (
+                <Badge variant="secondary" className="bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 text-xs">
+                  <Box className="w-3 h-3 mr-1" />
+                  3D
+                </Badge>
+              )}
               <span className={`text-sm ${visibility.className}`}>• {visibility.text}</span>
             </div>
             {route.description && (
