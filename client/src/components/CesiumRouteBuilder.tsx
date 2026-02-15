@@ -59,12 +59,17 @@ export default function CesiumRouteBuilder({
   const polylineEntityRef = useRef<any>(null);
   const handlerRef = useRef<any>(null);
   const waypointsRef = useRef<WaypointData[]>([]);
+  const draggingRef = useRef<number | null>(null);
 
   const Cesium = (window as any).Cesium;
 
   useEffect(() => {
     waypointsRef.current = waypoints;
   }, [waypoints]);
+
+  useEffect(() => {
+    draggingRef.current = draggingIndex;
+  }, [draggingIndex]);
 
   const removeAllEntities = useCallback(() => {
     if (!viewer || viewer.isDestroyed()) return;
@@ -104,7 +109,7 @@ export default function CesiumRouteBuilder({
     const entity = viewer.entities.add({
       position: wp.cartesian,
       point: {
-        pixelSize: isSelected ? 16 : 12,
+        pixelSize: isSelected ? 18 : 12,
         color: isSelected
           ? Cesium.Color.fromCssColorString('#00FF88')
           : Cesium.Color.fromCssColorString('#FF6B35'),
@@ -125,7 +130,6 @@ export default function CesiumRouteBuilder({
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
     });
-    entity._waypointIndex = index;
     entitiesRef.current.push(entity);
     viewer.scene.requestRender();
   }, [viewer, Cesium]);
@@ -151,21 +155,32 @@ export default function CesiumRouteBuilder({
     return { totalDistance, elevationGain, elevationLoss, estimatedTime };
   }, [Cesium]);
 
-  const findClickedWaypointIndex = useCallback((clickPosition: any): number | null => {
+  const findNearestWaypointIndex = useCallback((screenPos: { x: number; y: number }): number | null => {
     if (!viewer || !Cesium || viewer.isDestroyed()) return null;
-    const picked = viewer.scene.pick(clickPosition);
-    if (!picked || !picked.id) return null;
-    const entity = picked.id;
-    if (typeof entity._waypointIndex === 'number') {
-      return entity._waypointIndex;
+    const wps = waypointsRef.current;
+    if (wps.length === 0) return null;
+
+    const hitRadius = 20;
+    let closestIdx: number | null = null;
+    let closestDist = Infinity;
+
+    for (let i = 0; i < wps.length; i++) {
+      const screenPoint = Cesium.SceneTransforms.worldToWindowCoordinates(viewer.scene, wps[i].cartesian);
+      if (!screenPoint) continue;
+      const dx = screenPos.x - screenPoint.x;
+      const dy = screenPos.y - screenPoint.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < hitRadius && dist < closestDist) {
+        closestDist = dist;
+        closestIdx = i;
+      }
     }
-    return null;
+    return closestIdx;
   }, [viewer, Cesium]);
 
   const pickPositionOnTileset = useCallback((screenPosition: any): any | null => {
     if (!viewer || !Cesium || viewer.isDestroyed()) return null;
-    const position = viewer.scene.pickPosition(screenPosition);
-    return position || null;
+    return viewer.scene.pickPosition(screenPosition) || null;
   }, [viewer, Cesium]);
 
   useEffect(() => {
@@ -174,51 +189,47 @@ export default function CesiumRouteBuilder({
     const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
     handlerRef.current = handler;
 
-    handler.setInputAction((click: any) => {
-      const currentDragging = draggingIndex;
+    handler.setInputAction((event: any) => {
+      const idx = findNearestWaypointIndex({ x: event.position.x, y: event.position.y });
+      if (idx !== null) {
+        draggingRef.current = idx;
+        setDraggingIndex(idx);
+        rebuildEntities(waypointsRef.current, idx);
+        viewer.scene.screenSpaceCameraController.enableInputs = false;
+      }
+    }, Cesium.ScreenSpaceEventType.LEFT_DOWN);
 
-      if (currentDragging !== null) {
-        const position = pickPositionOnTileset(click.position);
-        if (!position) return;
+    handler.setInputAction((event: any) => {
+      if (draggingRef.current !== null) {
+        const dragIdx = draggingRef.current;
+        const position = pickPositionOnTileset(event.position);
+        if (position) {
+          const carto = Cesium.Cartographic.fromCartesian(position);
+          const lng = Cesium.Math.toDegrees(carto.longitude);
+          const lat = Cesium.Math.toDegrees(carto.latitude);
+          const elevation = carto.height;
 
-        const carto = Cesium.Cartographic.fromCartesian(position);
-        const lng = Cesium.Math.toDegrees(carto.longitude);
-        const lat = Cesium.Math.toDegrees(carto.latitude);
-        const elevation = carto.height;
-
-        setWaypoints((prev) => {
-          const updated = [...prev];
-          updated[currentDragging] = {
-            ...updated[currentDragging],
-            lngLat: [lng, lat],
-            elevation,
-            cartesian: position,
-          };
-          rebuildEntities(updated, null);
-          return updated;
-        });
+          setWaypoints((prev) => {
+            const updated = [...prev];
+            updated[dragIdx] = {
+              ...updated[dragIdx],
+              lngLat: [lng, lat],
+              elevation,
+              cartesian: position,
+            };
+            rebuildEntities(updated, null);
+            return updated;
+          });
+        } else {
+          rebuildEntities(waypointsRef.current, null);
+        }
+        draggingRef.current = null;
         setDraggingIndex(null);
-        viewer.scene.screenSpaceCameraController.enableRotate = true;
-        viewer.scene.screenSpaceCameraController.enableTranslate = true;
-        viewer.scene.screenSpaceCameraController.enableZoom = true;
-        viewer.scene.screenSpaceCameraController.enableTilt = true;
-        viewer.scene.screenSpaceCameraController.enableLook = true;
+        viewer.scene.screenSpaceCameraController.enableInputs = true;
         return;
       }
 
-      const clickedIdx = findClickedWaypointIndex(click.position);
-      if (clickedIdx !== null) {
-        setDraggingIndex(clickedIdx);
-        rebuildEntities(waypointsRef.current, clickedIdx);
-        viewer.scene.screenSpaceCameraController.enableRotate = false;
-        viewer.scene.screenSpaceCameraController.enableTranslate = false;
-        viewer.scene.screenSpaceCameraController.enableZoom = false;
-        viewer.scene.screenSpaceCameraController.enableTilt = false;
-        viewer.scene.screenSpaceCameraController.enableLook = false;
-        return;
-      }
-
-      const position = pickPositionOnTileset(click.position);
+      const position = pickPositionOnTileset(event.position);
       if (!position) return;
 
       const carto = Cesium.Cartographic.fromCartesian(position);
@@ -241,10 +252,11 @@ export default function CesiumRouteBuilder({
         updatePolyline(updated);
         return updated;
       });
-    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+    }, Cesium.ScreenSpaceEventType.LEFT_UP);
 
     handler.setInputAction((movement: any) => {
-      if (draggingIndex === null) return;
+      if (draggingRef.current === null) return;
+      const dragIdx = draggingRef.current;
 
       const position = pickPositionOnTileset(movement.endPosition);
       if (!position) return;
@@ -256,13 +268,13 @@ export default function CesiumRouteBuilder({
 
       setWaypoints((prev) => {
         const updated = [...prev];
-        updated[draggingIndex] = {
-          ...updated[draggingIndex],
+        updated[dragIdx] = {
+          ...updated[dragIdx],
           lngLat: [lng, lat],
           elevation,
           cartesian: position,
         };
-        rebuildEntities(updated, draggingIndex);
+        rebuildEntities(updated, dragIdx);
         return updated;
       });
     }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
@@ -271,14 +283,10 @@ export default function CesiumRouteBuilder({
       handler.destroy();
       handlerRef.current = null;
       if (viewer && !viewer.isDestroyed()) {
-        viewer.scene.screenSpaceCameraController.enableRotate = true;
-        viewer.scene.screenSpaceCameraController.enableTranslate = true;
-        viewer.scene.screenSpaceCameraController.enableZoom = true;
-        viewer.scene.screenSpaceCameraController.enableTilt = true;
-        viewer.scene.screenSpaceCameraController.enableLook = true;
+        viewer.scene.screenSpaceCameraController.enableInputs = true;
       }
     };
-  }, [isOpen, viewer, Cesium, draggingIndex, addWaypointEntity, updatePolyline, rebuildEntities, findClickedWaypointIndex, pickPositionOnTileset]);
+  }, [isOpen, viewer, Cesium, addWaypointEntity, updatePolyline, rebuildEntities, findNearestWaypointIndex, pickPositionOnTileset]);
 
   useEffect(() => {
     if (!isOpen || !editingRoute || !Cesium) return;
@@ -316,6 +324,7 @@ export default function CesiumRouteBuilder({
       setName('');
       setDescription('');
       setDraggingIndex(null);
+      draggingRef.current = null;
     }
   }, [isOpen, removeAllEntities]);
 
@@ -331,6 +340,7 @@ export default function CesiumRouteBuilder({
 
   const handleDeleteWaypoint = useCallback((index: number) => {
     setDraggingIndex(null);
+    draggingRef.current = null;
     setWaypoints((prev) => {
       const updated = prev.filter((_, i) => i !== index);
       rebuildEntities(updated);
@@ -340,6 +350,7 @@ export default function CesiumRouteBuilder({
 
   const handleUndoLast = useCallback(() => {
     setDraggingIndex(null);
+    draggingRef.current = null;
     setWaypoints((prev) => {
       if (prev.length === 0) return prev;
       const updated = prev.slice(0, -1);
@@ -350,21 +361,10 @@ export default function CesiumRouteBuilder({
 
   const handleClearAll = useCallback(() => {
     setDraggingIndex(null);
+    draggingRef.current = null;
     setWaypoints([]);
     removeAllEntities();
   }, [removeAllEntities]);
-
-  const handleCancelDrag = useCallback(() => {
-    setDraggingIndex(null);
-    rebuildEntities(waypointsRef.current, null);
-    if (viewer && !viewer.isDestroyed()) {
-      viewer.scene.screenSpaceCameraController.enableRotate = true;
-      viewer.scene.screenSpaceCameraController.enableTranslate = true;
-      viewer.scene.screenSpaceCameraController.enableZoom = true;
-      viewer.scene.screenSpaceCameraController.enableTilt = true;
-      viewer.scene.screenSpaceCameraController.enableLook = true;
-    }
-  }, [rebuildEntities, viewer]);
 
   const handleWaypointNameChange = useCallback((index: number, newName: string) => {
     setWaypoints((prev) =>
@@ -484,28 +484,17 @@ export default function CesiumRouteBuilder({
 
         <div className="bg-white/5 rounded-md px-3 py-2">
           <div className="flex items-center gap-2 text-white/50 text-xs">
-            <RouteIcon className="w-3 h-3" />
-            <span>Mode: Direct (3D lines)</span>
+            <Move className="w-3 h-3" />
+            <span>Drag waypoints to reposition them</span>
           </div>
         </div>
 
         {draggingIndex !== null && (
           <div className="bg-green-500/10 border border-green-400/30 rounded-md px-3 py-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-green-300 text-xs font-medium">
-                <Move className="w-3.5 h-3.5" />
-                <span>Moving Waypoint {draggingIndex + 1}</span>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-5 px-2 text-[10px] text-green-300 hover:text-white hover:bg-white/10"
-                onClick={handleCancelDrag}
-              >
-                Cancel
-              </Button>
+            <div className="flex items-center gap-2 text-green-300 text-xs font-medium">
+              <Move className="w-3.5 h-3.5" />
+              <span>Dragging Waypoint {draggingIndex + 1}...</span>
             </div>
-            <p className="text-green-200/60 text-[10px] mt-1">Click on the 3D map to place it</p>
           </div>
         )}
 
