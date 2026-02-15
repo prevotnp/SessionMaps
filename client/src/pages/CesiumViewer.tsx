@@ -86,6 +86,7 @@ export default function CesiumViewer() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [tilesLoading, setTilesLoading] = useState(false);
   const [isMeasuring, setIsMeasuring] = useState(false);
   const [measureDistance, setMeasureDistance] = useState<number | null>(null);
   const [gpsActive, setGpsActive] = useState(false);
@@ -155,6 +156,16 @@ export default function CesiumViewer() {
 
         viewer.scene.primitives.add(loadedTileset);
         tilesetRef.current = loadedTileset;
+
+        setTilesLoading(true);
+        loadedTileset.allTilesLoaded.addEventListener(() => {
+          setTilesLoading(false);
+        });
+        loadedTileset.loadProgress.addEventListener((numberOfPendingRequests: number, numberOfTilesProcessing: number) => {
+          if (numberOfPendingRequests > 0 || numberOfTilesProcessing > 0) {
+            setTilesLoading(true);
+          }
+        });
 
         await viewer.zoomTo(loadedTileset);
 
@@ -560,6 +571,15 @@ export default function CesiumViewer() {
           </Button>
         </div>
       </div>
+
+      {tilesLoading && !isLoading && !error && (
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 pointer-events-none">
+          <div className="bg-black/60 backdrop-blur-sm rounded-xl px-6 py-4 flex items-center gap-3">
+            <div className="w-5 h-5 border-2 border-white/80 border-t-transparent rounded-full animate-spin" />
+            <span className="text-white text-sm font-medium">Loading imagery...</span>
+          </div>
+        </div>
+      )}
 
       {isMeasuring && (
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40">
