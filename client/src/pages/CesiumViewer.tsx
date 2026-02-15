@@ -577,53 +577,53 @@ export default function CesiumViewer() {
       <div className="absolute top-4 right-4 z-40 flex flex-col gap-2">
         <Button
           variant="outline"
-          size="icon"
-          className={`w-10 h-10 bg-gray-900/80 border-white/20 text-white hover:bg-gray-800 ${isRouteBuilderOpen ? 'ring-2 ring-green-400 border-green-400' : ''}`}
+          size="sm"
+          className={`h-9 px-3 bg-gray-900/80 border-white/20 text-white hover:bg-gray-800 ${isRouteBuilderOpen ? 'ring-2 ring-green-400 border-green-400' : ''}`}
           onClick={handleOpenRouteBuilder}
-          title="Build Route"
         >
-          <RouteIcon className={`w-5 h-5 ${isRouteBuilderOpen ? 'text-green-400' : ''}`} />
+          <RouteIcon className={`w-4 h-4 mr-2 ${isRouteBuilderOpen ? 'text-green-400' : ''}`} />
+          New Route
         </Button>
 
         <Button
           variant="outline"
-          size="icon"
-          className={`w-10 h-10 bg-gray-900/80 border-white/20 text-white hover:bg-gray-800 ${isRoutesListOpen ? 'ring-2 ring-blue-400 border-blue-400' : ''}`}
+          size="sm"
+          className={`h-9 px-3 bg-gray-900/80 border-white/20 text-white hover:bg-gray-800 ${isRoutesListOpen ? 'ring-2 ring-blue-400 border-blue-400' : ''}`}
           onClick={() => setIsRoutesListOpen(!isRoutesListOpen)}
-          title="View Routes"
         >
-          <List className={`w-5 h-5 ${isRoutesListOpen ? 'text-blue-400' : ''}`} />
+          <List className={`w-4 h-4 mr-2 ${isRoutesListOpen ? 'text-blue-400' : ''}`} />
+          Existing Routes
         </Button>
 
         <Button
           variant="outline"
-          size="icon"
-          className={`w-10 h-10 bg-gray-900/80 border-white/20 text-white hover:bg-gray-800 ${isMeasuring ? 'ring-2 ring-orange-400 border-orange-400' : ''}`}
+          size="sm"
+          className={`h-9 px-3 bg-gray-900/80 border-white/20 text-white hover:bg-gray-800 ${isMeasuring ? 'ring-2 ring-orange-400 border-orange-400' : ''}`}
           onClick={handleMeasureClick}
-          title={isMeasuring ? 'Stop measuring' : 'Measure distance'}
         >
-          {isMeasuring ? <X className="w-5 h-5" /> : <Ruler className="w-5 h-5" />}
+          {isMeasuring ? <X className="w-4 h-4 mr-2" /> : <Ruler className="w-4 h-4 mr-2" />}
+          Measure
         </Button>
 
         <Button
           variant="outline"
-          size="icon"
-          className={`w-10 h-10 bg-gray-900/80 border-white/20 text-white hover:bg-gray-800 ${gpsActive ? 'ring-2 ring-blue-400 border-blue-400' : ''}`}
+          size="sm"
+          className={`h-9 px-3 bg-gray-900/80 border-white/20 text-white hover:bg-gray-800 ${gpsActive ? 'ring-2 ring-blue-400 border-blue-400' : ''}`}
           onClick={toggleGps}
-          title={gpsActive ? 'Disable GPS' : 'Enable GPS'}
         >
-          <Navigation className={`w-5 h-5 ${gpsActive ? 'text-blue-400' : ''}`} />
+          <Navigation className={`w-4 h-4 mr-2 ${gpsActive ? 'text-blue-400' : ''}`} />
+          My Location
         </Button>
 
         {gpsActive && gpsPosition && (
           <Button
             variant="outline"
-            size="icon"
-            className="w-10 h-10 bg-gray-900/80 border-white/20 text-white hover:bg-gray-800"
+            size="sm"
+            className="h-9 px-3 bg-gray-900/80 border-white/20 text-white hover:bg-gray-800"
             onClick={flyToGps}
-            title="Fly to GPS location"
           >
-            <MapPin className="w-5 h-5 text-blue-400" />
+            <MapPin className="w-4 h-4 mr-2 text-blue-400" />
+            Go to GPS
           </Button>
         )}
 
