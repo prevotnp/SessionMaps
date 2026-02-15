@@ -470,17 +470,24 @@ export default function CesiumViewer() {
 
     if (newState) {
       const mapboxProvider = new C.UrlTemplateImageryProvider({
-        url: `https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/tiles/512/{z}/{x}/{y}@2x?access_token=${mapboxToken}`,
+        url: `https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/tiles/256/{z}/{x}/{y}?access_token=${mapboxToken}`,
         minimumLevel: 0,
         maximumLevel: 22,
-        tileWidth: 512,
-        tileHeight: 512,
+        tileWidth: 256,
+        tileHeight: 256,
         credit: new C.Credit('Mapbox'),
       });
-      viewer.imageryLayers.addImageryProvider(mapboxProvider);
+      const layer = viewer.imageryLayers.addImageryProvider(mapboxProvider);
+      layer.alpha = 0.65;
       viewer.scene.globe.show = true;
+      viewer.scene.globe.baseColor = C.Color.BLACK;
+      viewer.scene.globe.translucency.enabled = true;
+      viewer.scene.globe.translucency.frontFaceAlpha = 0.6;
+      viewer.scene.globe.translucency.backFaceAlpha = 0.0;
+      viewer.scene.globe.depthTestAgainstTerrain = false;
     } else {
       viewer.imageryLayers.removeAll();
+      viewer.scene.globe.translucency.enabled = false;
       viewer.scene.globe.show = false;
     }
     viewer.scene.requestRender();
