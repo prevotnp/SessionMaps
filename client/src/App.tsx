@@ -44,17 +44,17 @@ function Router() {
       <Route path="/reset-password" component={ResetPassword} />
       <Route path="/record-activity">{() => <ProtectedRoute component={RecordActivity} />}</Route>
       <Route path="/activities/:id">{(params) => <ProtectedRoute component={ActivityDetail} {...params} />}</Route>
+      <Route path="/profile">{() => <ProtectedRoute component={Profile} />}</Route>
+      <Route path="/admin">{() => <ProtectedRoute component={AdminPanel} />}</Route>
+      <Route path="/drone/:id/3d">{(params) => <ProtectedRoute component={DroneModelViewer} {...params} />}</Route>
+      <Route path="/cesium/:id">{(params) => <ProtectedRoute component={CesiumViewer} {...params} />}</Route>
+      <Route path="/live-map/:id">{(params) => <ProtectedRoute component={LiveSharedMap} {...params} />}</Route>
       {isLoading || !isAuthenticated ? (
         <Route path="/" component={Auth} />
       ) : (
         <>
           <Route path="/" component={Home} />
           <Route path="/explore" component={Explore} />
-          <Route path="/profile" component={Profile} />
-          <Route path="/admin" component={AdminPanel} />
-          <Route path="/drone/:id/3d" component={DroneModelViewer} />
-          <Route path="/cesium/:id" component={CesiumViewer} />
-          <Route path="/live-map/:id" component={LiveSharedMap} />
         </>
       )}
       <Route component={NotFound} />

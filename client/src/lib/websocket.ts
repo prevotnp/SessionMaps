@@ -53,21 +53,20 @@ function createWebSocket(currentUserId: number): WebSocket {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl = `${protocol}//${window.location.host}/ws`;
   
-  console.log(`Connecting to WebSocket at ${wsUrl}`);
-  
   // Create a new WebSocket connection
   websocket = new WebSocket(wsUrl);
   
   // Set up event handlers
   websocket.onopen = () => {
-    console.log('WebSocket connection established');
     isConnecting = false;
     
     // Send authentication message
-    websocket.send(JSON.stringify({
-      type: 'auth',
-      userId: currentUserId
-    }));
+    if (websocket && websocket.readyState === WebSocket.OPEN) {
+      websocket.send(JSON.stringify({
+        type: 'auth',
+        userId: currentUserId
+      }));
+    }
     
     // Set up ping interval to keep connection alive
     pingInterval = setInterval(() => {
@@ -84,7 +83,6 @@ function createWebSocket(currentUserId: number): WebSocket {
   };
   
   websocket.onclose = (event) => {
-    console.log(`WebSocket connection closed: ${event.code} ${event.reason}`);
     isConnecting = false;
     
     // Clear ping interval
@@ -96,8 +94,7 @@ function createWebSocket(currentUserId: number): WebSocket {
     // Attempt to reconnect after a delay
     if (!reconnectTimeout && userId) {
       reconnectTimeout = setTimeout(() => {
-        console.log('Attempting to reconnect WebSocket...');
-        createWebSocket(userId);
+        createWebSocket(userId as number);
         reconnectTimeout = null;
       }, 5000); // Try to reconnect after 5 seconds
     }
@@ -113,8 +110,6 @@ function createWebSocket(currentUserId: number): WebSocket {
 
 // Disconnect the websocket
 function disconnectWebsocket(): void {
-  console.log('Disconnecting WebSocket');
-  
   // Clear intervals and timeouts
   if (pingInterval) {
     clearInterval(pingInterval);

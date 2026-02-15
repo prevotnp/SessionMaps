@@ -124,6 +124,7 @@ const TripForm: React.FC<TripFormProps> = ({ isOpen, onClose, trip }) => {
                       placeholder="Brief description of your trip..."
                       rows={3}
                       {...field}
+                      value={field.value ?? ''}
                     />
                   </FormControl>
                   <FormMessage />
@@ -168,7 +169,7 @@ const TripForm: React.FC<TripFormProps> = ({ isOpen, onClose, trip }) => {
                 <FormItem>
                   <FormLabel>Destination</FormLabel>
                   <FormControl>
-                    <Input placeholder="City, Country" {...field} />
+                    <Input placeholder="City, Country" {...field} value={field.value ?? ''} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -188,6 +189,7 @@ const TripForm: React.FC<TripFormProps> = ({ isOpen, onClose, trip }) => {
                         step="any" 
                         placeholder="40.7128" 
                         {...field} 
+                        value={field.value ?? ''}
                       />
                     </FormControl>
                     <FormMessage />
@@ -207,6 +209,7 @@ const TripForm: React.FC<TripFormProps> = ({ isOpen, onClose, trip }) => {
                         step="any" 
                         placeholder="-74.0060" 
                         {...field} 
+                        value={field.value ?? ''}
                       />
                     </FormControl>
                     <FormMessage />
@@ -228,7 +231,7 @@ const TripForm: React.FC<TripFormProps> = ({ isOpen, onClose, trip }) => {
                   </div>
                   <FormControl>
                     <Switch
-                      checked={field.value}
+                      checked={field.value ?? false}
                       onCheckedChange={field.onChange}
                     />
                   </FormControl>

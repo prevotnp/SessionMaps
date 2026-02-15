@@ -375,7 +375,6 @@ export default function LiveSharedMap() {
     mutationFn: async () => {
       // Save all member paths as routes before ending
       const savedCount = await saveSessionPathsAsRoutes();
-      console.log(`Saved ${savedCount} paths as routes`);
       return apiRequest('DELETE', `/api/live-maps/${sessionId}`);
     },
     onSuccess: () => {
@@ -479,7 +478,6 @@ export default function LiveSharedMap() {
   useEffect(() => {
     if (!mapContainer.current || mapInitialized.current || !session) return;
     
-    console.log('Initializing live map...');
     mapInitialized.current = true;
     
     map.current = new mapboxgl.Map({
@@ -487,10 +485,6 @@ export default function LiveSharedMap() {
       style: 'mapbox://styles/mapbox/satellite-streets-v12',
       center: [-110.8, 43.5],
       zoom: 10
-    });
-    
-    map.current.on('load', () => {
-      console.log('Live map loaded successfully');
     });
     
     map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');

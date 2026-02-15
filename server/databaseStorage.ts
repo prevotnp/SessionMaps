@@ -205,7 +205,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteDroneImage(id: number): Promise<boolean> {
     const result = await db.delete(droneImages).where(eq(droneImages.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // 3D Drone model operations
@@ -238,7 +238,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteDroneModel(id: number): Promise<boolean> {
     const result = await db.delete(droneModels).where(eq(droneModels.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Cesium 3D Tileset operations
@@ -266,7 +266,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteCesium3dTileset(id: number): Promise<boolean> {
     const result = await db.delete(cesium3dTilesets).where(eq(cesium3dTilesets.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Location operations
@@ -307,7 +307,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteOfflineMapArea(id: number): Promise<boolean> {
     const result = await db.delete(offlineMapAreas).where(eq(offlineMapAreas.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Waypoint operations
@@ -352,7 +352,7 @@ export class DatabaseStorage implements IStorage {
     
     // Then delete the waypoint itself
     const result = await db.delete(waypoints).where(eq(waypoints.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   async shareWaypoint(share: InsertWaypointShare): Promise<WaypointShare> {
@@ -372,7 +372,7 @@ export class DatabaseStorage implements IStorage {
           eq(waypointShares.sharedWithUserId, sharedWithUserId)
         )
       );
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   async getWaypointShares(waypointId: number): Promise<WaypointShare[]> {
@@ -411,7 +411,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteMapDrawing(id: number): Promise<boolean> {
     const result = await db.delete(mapDrawings).where(eq(mapDrawings.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Location sharing operations
@@ -449,7 +449,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteLocationShare(id: number): Promise<boolean> {
     const result = await db.delete(locationShares).where(eq(locationShares.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   async findLocationShareByUsers(fromUserId: number, toUserId: number): Promise<LocationShare | undefined> {
@@ -524,7 +524,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteUserLocation(userId: number): Promise<boolean> {
     const result = await db.delete(userLocations).where(eq(userLocations.userId, userId));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Route operations
@@ -604,7 +604,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteRoute(id: number): Promise<boolean> {
     const result = await db.delete(routes).where(eq(routes.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   async getRoutesSharedWithUser(userId: number): Promise<Route[]> {
@@ -652,7 +652,7 @@ export class DatabaseStorage implements IStorage {
 
   async revokeRouteShare(shareId: number): Promise<boolean> {
     const result = await db.delete(routeShares).where(eq(routeShares.id, shareId));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   async isRouteSharedWithUser(routeId: number, userId: number): Promise<boolean> {
@@ -704,7 +704,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteRouteNote(id: number): Promise<boolean> {
     const result = await db.delete(routeNotes).where(eq(routeNotes.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Route Points of Interest operations
@@ -742,7 +742,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteRoutePointOfInterest(id: number): Promise<boolean> {
     const result = await db.delete(routePointsOfInterest).where(eq(routePointsOfInterest.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Trip operations
@@ -779,7 +779,7 @@ export class DatabaseStorage implements IStorage {
     await db.delete(calendarEvents).where(eq(calendarEvents.tripId, id));
     // Then delete the trip
     const result = await db.delete(trips).where(eq(trips.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Calendar event operations
@@ -819,7 +819,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteCalendarEvent(id: number): Promise<boolean> {
     const result = await db.delete(calendarEvents).where(eq(calendarEvents.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Friend request operations
@@ -897,7 +897,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteFriendRequest(id: number): Promise<boolean> {
     const result = await db.delete(friendRequests).where(eq(friendRequests.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Friendship operations
@@ -971,7 +971,7 @@ export class DatabaseStorage implements IStorage {
           )
         )
       );
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // User search operations
@@ -1091,7 +1091,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteLiveMapSession(id: number): Promise<boolean> {
     const result = await db.delete(liveMapSessions).where(eq(liveMapSessions.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Live Map Member operations
@@ -1139,7 +1139,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .delete(liveMapMembers)
       .where(and(eq(liveMapMembers.sessionId, sessionId), eq(liveMapMembers.userId, userId)));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   async isLiveMapMember(sessionId: number, userId: number): Promise<boolean> {
@@ -1171,7 +1171,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteLiveMapPoi(id: number): Promise<boolean> {
     const result = await db.delete(liveMapPois).where(eq(liveMapPois.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Live Map Route operations
@@ -1195,7 +1195,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteLiveMapRoute(id: number): Promise<boolean> {
     const result = await db.delete(liveMapRoutes).where(eq(liveMapRoutes.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Live Map Message operations

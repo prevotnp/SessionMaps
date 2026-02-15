@@ -23,7 +23,7 @@ const MapControls: React.FC<MapControlsProps> = ({
   return (
     <div className="absolute top-24 right-4 z-10 flex flex-col space-y-3">
       <button 
-        className="bg-dark/80 rounded-full p-2.5 backdrop-blur-sm" 
+        className="bg-dark/80 rounded-full p-3 min-w-[44px] min-h-[44px] backdrop-blur-sm active:scale-95 transition-transform" 
         onClick={onZoomIn}
         aria-label="Zoom in"
       >
@@ -31,7 +31,7 @@ const MapControls: React.FC<MapControlsProps> = ({
       </button>
       
       <button 
-        className="bg-dark/80 rounded-full p-2.5 backdrop-blur-sm"
+        className="bg-dark/80 rounded-full p-3 min-w-[44px] min-h-[44px] backdrop-blur-sm active:scale-95 transition-transform"
         onClick={onZoomOut}
         aria-label="Zoom out"
       >
@@ -41,7 +41,7 @@ const MapControls: React.FC<MapControlsProps> = ({
       <div className="h-px w-full bg-white/20"></div>
       
       <button 
-        className="bg-dark/80 rounded-full p-2.5 backdrop-blur-sm"
+        className="bg-dark/80 rounded-full p-3 min-w-[44px] min-h-[44px] backdrop-blur-sm active:scale-95 transition-transform"
         onClick={onResetNorth}
         aria-label="Reset north"
       >
@@ -53,7 +53,7 @@ const MapControls: React.FC<MapControlsProps> = ({
       </button>
       
       <button 
-        className="bg-blue-600 rounded-full p-2.5 backdrop-blur-sm hover:bg-blue-700 transition-colors"
+        className="bg-blue-600 rounded-full p-3 min-w-[44px] min-h-[44px] backdrop-blur-sm hover:bg-blue-700 active:scale-95 transition-transform"
         onClick={onMyLocation}
         aria-label="Center on my location"
         data-testid="button-my-location"
@@ -66,7 +66,7 @@ const MapControls: React.FC<MapControlsProps> = ({
           <div className="h-px w-full bg-white/20"></div>
           
           <button 
-            className={`${isMeasurementMode ? 'bg-orange-500' : 'bg-dark/80'} rounded-full p-2.5 backdrop-blur-sm transition-colors`}
+            className={`${isMeasurementMode ? 'bg-orange-500' : 'bg-dark/80'} rounded-full p-3 min-w-[44px] min-h-[44px] backdrop-blur-sm transition-all active:scale-95`}
             onClick={onToggleMeasurement}
             aria-label="Measure distance"
             data-testid="button-measure-distance"

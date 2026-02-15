@@ -32,7 +32,7 @@ const LayerManagerModal: React.FC<LayerManagerModalProps> = ({ isOpen, onClose }
     toast({
       title: "Settings Saved",
       description: "Your map display preferences have been updated.",
-      variant: "success"
+      variant: "default"
     });
     onClose();
   };

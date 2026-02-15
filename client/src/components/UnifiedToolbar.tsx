@@ -103,7 +103,7 @@ const UnifiedToolbar: React.FC<UnifiedToolbarProps> = ({
 
   
   return (
-    <div className="absolute bottom-4 left-0 right-0 z-10 px-2 sm:px-4">
+    <div className="absolute bottom-20 left-0 right-0 z-10 px-2 sm:px-4">
       <div className="flex justify-center">
         <div className="relative max-w-full">
           {/* Main Toolbar */}
@@ -111,46 +111,46 @@ const UnifiedToolbar: React.FC<UnifiedToolbarProps> = ({
             
             {/* Explore Group */}
             <div className="flex flex-col items-center">
-              <span className="text-[18px] text-white font-medium underline mb-px">Explore</span>
+              <span className="text-[11px] text-white font-medium underline mb-px">Explore</span>
               <div className="flex items-center space-x-0.5">
                 {/* 2D/3D Toggle Button */}
                 <button 
                   className={cn(
-                    "layer-toggle-btn bg-dark-gray/50 rounded-full p-2 flex flex-col items-center border-2 border-transparent transition-all",
+                    "layer-toggle-btn bg-dark-gray/50 rounded-full p-2 min-w-[44px] min-h-[44px] flex flex-col items-center border-2 border-transparent transition-all active:scale-95",
                     (activeBaseLayer === 'esri-hd' || activeBaseLayer === 'esri-2d') && "active ring-2 ring-primary"
                   )}
                   onClick={() => handleToggleLayer(activeBaseLayer === 'esri-hd' ? 'esri-2d' : 'esri-hd')}
                   data-testid="button-2d-3d"
                 >
                   {activeBaseLayer === 'esri-hd' ? <Satellite className="h-5 w-5 text-sky-400" /> : <Eye className="h-5 w-5 text-sky-400" />}
-                  <span className="text-xs mt-0.5">2D/3D</span>
+                  <span className="text-[10px] mt-0.5">2D/3D</span>
                 </button>
                 
                 {/* Topo Button */}
                 <button 
                   className={cn(
-                    "layer-toggle-btn bg-dark-gray/50 rounded-full p-2 flex flex-col items-center border-2 border-transparent transition-all",
+                    "layer-toggle-btn bg-dark-gray/50 rounded-full p-2 min-w-[44px] min-h-[44px] flex flex-col items-center border-2 border-transparent transition-all active:scale-95",
                     isTopoActive && "active ring-2 ring-primary"
                   )}
                   onClick={() => handleToggleLayer('topo')}
                   data-testid="button-topo"
                 >
                   <Mountain className="h-5 w-5" />
-                  <span className="text-xs mt-0.5">Topo</span>
+                  <span className="text-[10px] mt-0.5">Topo</span>
                 </button>
                 
                 {/* Drone Dropdown */}
                 <div className="relative" ref={droneDropdownRef}>
                   <button 
                     className={cn(
-                      "layer-toggle-btn bg-dark-gray/50 rounded-full p-2 flex flex-col items-center border-2 border-transparent transition-all",
+                      "layer-toggle-btn bg-dark-gray/50 rounded-full p-2 min-w-[44px] min-h-[44px] flex flex-col items-center border-2 border-transparent transition-all active:scale-95",
                       droneDropdownOpen && "active ring-2 ring-primary"
                     )}
                     onClick={() => setDroneDropdownOpen(!droneDropdownOpen)}
                     data-testid="button-drone"
                   >
                     <PiBirdFill className="h-5 w-5 text-amber-500" />
-                    <span className="text-xs mt-0.5 flex flex-col items-center leading-tight">
+                    <span className="text-[10px] mt-0.5 flex flex-col items-center leading-tight">
                       <span className="flex items-center">Drone {droneDropdownOpen ? <ChevronUp className="h-3 w-3 ml-0.5" /> : <ChevronDown className="h-3 w-3 ml-0.5" />}</span>
                       <span>Imagery</span>
                     </span>
@@ -225,14 +225,14 @@ const UnifiedToolbar: React.FC<UnifiedToolbarProps> = ({
                 {/* Measure Button */}
                 <button 
                   className={cn(
-                    "layer-toggle-btn bg-dark-gray/50 rounded-full p-2 flex flex-col items-center border-2 border-transparent transition-all",
+                    "layer-toggle-btn bg-dark-gray/50 rounded-full p-2 min-w-[44px] min-h-[44px] flex flex-col items-center border-2 border-transparent transition-all active:scale-95",
                     isMeasurementMode && "active ring-2 ring-orange-500"
                   )}
                   onClick={onToggleMeasurement}
                   data-testid="button-measure"
                 >
                   <Ruler className="h-5 w-5 text-yellow-400" />
-                  <span className="text-xs mt-0.5">Measure</span>
+                  <span className="text-[10px] mt-0.5">Measure</span>
                 </button>
               </div>
             </div>
@@ -242,16 +242,16 @@ const UnifiedToolbar: React.FC<UnifiedToolbarProps> = ({
             
             {/* Create Group */}
             <div className="flex flex-col items-center">
-              <span className="text-[18px] text-white font-medium underline mb-px">Create</span>
+              <span className="text-[11px] text-white font-medium underline mb-px">Create</span>
               <div className="flex items-center space-x-0.5">
                 {/* Build Route Button */}
                 <button 
-                  className="layer-toggle-btn bg-dark-gray/50 rounded-full p-2 flex flex-col items-center border-2 border-transparent transition-all hover:ring-2 hover:ring-primary/50"
+                  className="layer-toggle-btn bg-dark-gray/50 rounded-full p-2 min-w-[44px] min-h-[44px] flex flex-col items-center border-2 border-transparent transition-all active:scale-95 hover:ring-2 hover:ring-primary/50"
                   onClick={onOpenRouteBuilder}
                   data-testid="button-build-route"
                 >
                   <RouteIcon className="h-5 w-5 text-blue-400" />
-                  <span className="text-xs mt-0.5 flex flex-col items-center leading-tight">
+                  <span className="text-[10px] mt-0.5 flex flex-col items-center leading-tight">
                     <span>New</span>
                     <span>Route</span>
                   </span>
@@ -260,7 +260,7 @@ const UnifiedToolbar: React.FC<UnifiedToolbarProps> = ({
                 {/* Record Activity Button */}
                 <button 
                   className={cn(
-                    "layer-toggle-btn rounded-full p-2 flex flex-col items-center border-2 border-transparent transition-all",
+                    "layer-toggle-btn rounded-full p-2 min-w-[44px] min-h-[44px] flex flex-col items-center border-2 border-transparent transition-all active:scale-95",
                     isRecording 
                       ? "bg-red-600 ring-2 ring-red-400 animate-pulse" 
                       : "bg-dark-gray/50 hover:ring-2 hover:ring-primary/50"
@@ -269,7 +269,7 @@ const UnifiedToolbar: React.FC<UnifiedToolbarProps> = ({
                   data-testid="button-record-activity"
                 >
                   <Circle className={cn("h-5 w-5 text-red-400", isRecording && "fill-current")} />
-                  <span className="text-xs mt-0.5 flex flex-col items-center leading-tight">
+                  <span className="text-[10px] mt-0.5 flex flex-col items-center leading-tight">
                     <span>{isRecording ? 'Stop' : 'Record'}</span>
                     <span>Activity</span>
                   </span>
@@ -278,12 +278,12 @@ const UnifiedToolbar: React.FC<UnifiedToolbarProps> = ({
                 {/* Live Map Button */}
                 <div className="relative">
                   <button 
-                    className="layer-toggle-btn bg-dark-gray/50 rounded-full p-2 flex flex-col items-center border-2 border-transparent transition-all hover:ring-2 hover:ring-green-500/50"
+                    className="layer-toggle-btn bg-dark-gray/50 rounded-full p-2 min-w-[44px] min-h-[44px] flex flex-col items-center border-2 border-transparent transition-all active:scale-95 hover:ring-2 hover:ring-green-500/50"
                     onClick={onOpenLiveMap}
                     data-testid="button-live-map"
                   >
                     <Radio className="h-5 w-5 text-green-400" />
-                    <span className="text-xs mt-0.5 flex flex-col items-center leading-tight">
+                    <span className="text-[10px] mt-0.5 flex flex-col items-center leading-tight">
                       <span>Team</span>
                       <span>Map</span>
                     </span>

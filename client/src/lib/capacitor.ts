@@ -17,11 +17,10 @@ export async function initializeCapacitor() {
       await StatusBar.setBackgroundColor({ color: '#0a0a0f' });
     }
   } catch (e) {
-    console.log('StatusBar not available');
+    // StatusBar not available on this platform
   }
   
   App.addListener('appUrlOpen', (data) => {
-    console.log('App opened with URL:', data.url);
     handleDeepLink(data.url);
   });
   
@@ -49,7 +48,6 @@ function handleDeepLink(url: string) {
 
 export async function requestPushPermission(): Promise<string | null> {
   if (!isNative) {
-    console.log('Push notifications only available in native app');
     return null;
   }
   
@@ -61,7 +59,6 @@ export async function requestPushPermission(): Promise<string | null> {
     }
     
     if (permStatus.receive !== 'granted') {
-      console.log('Push notification permission not granted');
       return null;
     }
     
@@ -69,7 +66,6 @@ export async function requestPushPermission(): Promise<string | null> {
     
     return new Promise((resolve) => {
       PushNotifications.addListener('registration', (token) => {
-        console.log('Push registration success, token:', token.value);
         resolve(token.value);
       });
       
@@ -88,7 +84,6 @@ export function setupPushListeners(onNotification: (data: any) => void) {
   if (!isNative) return;
   
   PushNotifications.addListener('pushNotificationReceived', (notification) => {
-    console.log('Push notification received:', notification);
     onNotification({
       title: notification.title,
       body: notification.body,
@@ -97,7 +92,6 @@ export function setupPushListeners(onNotification: (data: any) => void) {
   });
   
   PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-    console.log('Push notification action performed:', action);
     const data = action.notification.data;
     if (data?.url) {
       window.location.href = data.url;

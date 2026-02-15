@@ -214,7 +214,7 @@ const CalendarEventForm: React.FC<CalendarEventFormProps> = ({
                 <FormItem>
                   <FormLabel>Location</FormLabel>
                   <FormControl>
-                    <Input placeholder="Meeting point or address" {...field} />
+                    <Input placeholder="Meeting point or address" {...field} value={field.value ?? ''} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -232,6 +232,7 @@ const CalendarEventForm: React.FC<CalendarEventFormProps> = ({
                       placeholder="Event details..."
                       rows={3}
                       {...field}
+                      value={field.value ?? ''}
                     />
                   </FormControl>
                   <FormMessage />
@@ -246,7 +247,7 @@ const CalendarEventForm: React.FC<CalendarEventFormProps> = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Priority</FormLabel>
-                    <Select onValueChange={(value) => field.onChange(Number(value))} defaultValue={field.value.toString()}>
+                    <Select onValueChange={(value) => field.onChange(Number(value))} defaultValue={(field.value ?? 1).toString()}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select priority" />
@@ -275,6 +276,7 @@ const CalendarEventForm: React.FC<CalendarEventFormProps> = ({
                         min="0" 
                         step="5"
                         {...field} 
+                        value={field.value ?? ''}
                         onChange={(e) => field.onChange(Number(e.target.value))}
                       />
                     </FormControl>
@@ -297,6 +299,7 @@ const CalendarEventForm: React.FC<CalendarEventFormProps> = ({
                         step="any" 
                         placeholder="40.7128" 
                         {...field} 
+                        value={field.value ?? ''}
                       />
                     </FormControl>
                     <FormMessage />
@@ -316,6 +319,7 @@ const CalendarEventForm: React.FC<CalendarEventFormProps> = ({
                         step="any" 
                         placeholder="-74.0060" 
                         {...field} 
+                        value={field.value ?? ''}
                       />
                     </FormControl>
                     <FormMessage />
@@ -335,6 +339,7 @@ const CalendarEventForm: React.FC<CalendarEventFormProps> = ({
                       placeholder="Additional notes or reminders..."
                       rows={2}
                       {...field}
+                      value={field.value ?? ''}
                     />
                   </FormControl>
                   <FormMessage />
@@ -355,7 +360,7 @@ const CalendarEventForm: React.FC<CalendarEventFormProps> = ({
                   </div>
                   <FormControl>
                     <Switch
-                      checked={field.value}
+                      checked={field.value ?? false}
                       onCheckedChange={field.onChange}
                     />
                   </FormControl>

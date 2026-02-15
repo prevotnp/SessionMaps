@@ -99,8 +99,6 @@ const Home: React.FC = () => {
         isOpen={isDroneModalOpen} 
         onClose={() => setIsDroneModalOpen(false)}
         onActivateImage={(image) => {
-          console.log('=== Home.tsx onActivateImage called ===');
-          console.log('Image received:', JSON.stringify(image, null, 2));
           setActivatedDroneImage(image);
         }}
       />

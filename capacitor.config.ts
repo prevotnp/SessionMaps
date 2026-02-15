@@ -3,7 +3,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 const config: CapacitorConfig = {
   appId: 'com.sessionmaps.app',
   appName: 'Session Maps',
-  webDir: 'dist',
+  webDir: 'dist/public',
   
   server: {
     androidScheme: 'https',

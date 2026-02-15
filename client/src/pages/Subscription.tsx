@@ -48,7 +48,7 @@ const Subscription: React.FC = () => {
       toast({
         title: "Subscription Successful",
         description: `You're now subscribed to Session Maps Premium!`,
-        variant: "success",
+        variant: "default",
       });
       
       // Refresh the page to update user state
@@ -190,7 +190,7 @@ const Subscription: React.FC = () => {
               <Button 
                 className="w-full"
                 onClick={() => handleSubscribe('monthly')}
-                disabled={isLoading || user.isSubscribed}
+                disabled={isLoading || (user.isSubscribed ?? false)}
               >
                 {isLoading ? (
                   <span className="flex items-center">
@@ -246,7 +246,7 @@ const Subscription: React.FC = () => {
                 className="w-full"
                 variant="outline"
                 onClick={() => handleSubscribe('yearly')}
-                disabled={isLoading || user.isSubscribed}
+                disabled={isLoading || (user.isSubscribed ?? false)}
               >
                 {isLoading ? "Processing..." : "Subscribe Yearly"}
               </Button>

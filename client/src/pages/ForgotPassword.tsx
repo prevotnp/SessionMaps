@@ -26,9 +26,6 @@ export default function ForgotPassword() {
         title: "Check your email",
         description: "If an account exists with that email, you'll receive a password reset link.",
       });
-      if (data.resetUrl) {
-        console.log("Reset URL (for testing):", data.resetUrl);
-      }
     },
     onError: (error: Error) => {
       toast({
@@ -82,14 +79,14 @@ export default function ForgotPassword() {
                 <Button 
                   variant="outline" 
                   onClick={() => setSubmitted(false)}
-                  className="w-full"
+                  className="w-full h-12 active:scale-95 transition-transform"
                 >
                   Try a different email
                 </Button>
                 <Button 
                   variant="ghost" 
                   onClick={() => setLocation("/login")}
-                  className="w-full"
+                  className="w-full h-12 active:scale-95 transition-transform"
                 >
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Back to Sign In
@@ -111,7 +108,7 @@ export default function ForgotPassword() {
               </div>
               <Button 
                 type="submit" 
-                className="w-full"
+                className="w-full h-12 active:scale-95 transition-transform"
                 disabled={forgotPasswordMutation.isPending}
               >
                 {forgotPasswordMutation.isPending ? "Sending..." : "Send Reset Link"}
@@ -120,7 +117,7 @@ export default function ForgotPassword() {
                 type="button"
                 variant="ghost" 
                 onClick={() => setLocation("/login")}
-                className="w-full"
+                className="w-full h-12 active:scale-95 transition-transform"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Sign In

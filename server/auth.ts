@@ -23,17 +23,11 @@ async function hashPassword(password: string) {
 }
 
 async function comparePasswords(supplied: string, stored: string) {
-  console.log('comparePasswords called with supplied length:', supplied.length);
-  console.log('stored password format:', stored.includes('.') ? 'correct format' : 'incorrect format');
-  
   const [hashed, salt] = stored.split(".");
-  console.log('salt:', salt);
-  console.log('hashed length:', hashed.length);
   
   const hashedBuf = Buffer.from(hashed, "hex");
   const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
   const result = timingSafeEqual(hashedBuf, suppliedBuf);
-  console.log('password comparison result:', result);
   return result;
 }
 
@@ -45,14 +39,21 @@ export function setupAuth(app: Express) {
   });
 
   const sessionSettings: session.SessionOptions = {
-    secret: process.env.SESSION_SECRET || 'session-maps-secret-key',
+    secret: (() => {
+      const secret = process.env.SESSION_SECRET;
+      if (!secret && process.env.NODE_ENV === 'production') {
+        throw new Error('SESSION_SECRET environment variable is required in production');
+      }
+      return secret || 'dev-only-secret-change-in-production';
+    })(),
     resave: false,
     saveUninitialized: false,
     store: sessionStore,
     cookie: {
-      secure: false, // Set to true in production with HTTPS
+      secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 1 week
+      sameSite: process.env.NODE_ENV === 'production' ? 'strict' as const : 'lax' as const,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     },
   };
 
@@ -66,29 +67,18 @@ export function setupAuth(app: Express) {
       { usernameField: 'email' },
       async (email, password, done) => {
         try {
-          console.log(`Login attempt for email: ${email}`);
           const user = await dbStorage.getUserByEmail(email);
-          console.log(`User found:`, user ? 'YES' : 'NO');
-          if (user) {
-            console.log(`User details:`, { id: user.id, email: user.email, isAdmin: user.isAdmin });
-          }
           
           if (!user) {
-            console.log('User not found');
             return done(null, false);
           }
           
-          console.log('Comparing passwords...');
-          console.log('Stored password hash:', user.password);
           const passwordMatch = await comparePasswords(password, user.password);
-          console.log(`Password match:`, passwordMatch);
           
           if (!passwordMatch) {
-            console.log('Password does not match');
             return done(null, false);
           }
           
-          console.log('Login successful');
           return done(null, user);
         } catch (error) {
           console.error('Login error:', error);
@@ -151,21 +141,17 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/login", async (req, res, next) => {
-    console.log('Login request received:', req.body);
     const { email, password } = req.body;
     
     try {
       // Direct authentication for debugging
       const user = await dbStorage.getUserByEmail(email);
-      console.log('Direct user lookup:', user ? 'FOUND' : 'NOT FOUND');
       
       if (!user) {
         return res.status(401).json({ message: "User not found" });
       }
       
-      console.log('Testing password comparison...');
       const passwordMatch = await comparePasswords(password, user.password);
-      console.log('Direct password match:', passwordMatch);
       
       if (!passwordMatch) {
         return res.status(401).json({ message: "Invalid password" });
@@ -177,7 +163,6 @@ export function setupAuth(app: Express) {
           console.error('Login error:', loginErr);
           return next(loginErr);
         }
-        console.log('Login successful for user:', user.email);
         res.status(200).json(user);
       });
     } catch (error) {

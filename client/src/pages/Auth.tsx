@@ -186,7 +186,7 @@ export default function Auth() {
                 </div>
                 <Button 
                   type="submit" 
-                  className="w-full"
+                  className="w-full h-12 active:scale-95 transition-transform"
                   disabled={registerMutation.isPending}
                 >
                   {registerMutation.isPending ? "Creating Account..." : "Create Account"}
@@ -224,14 +224,14 @@ export default function Auth() {
                   <button
                     type="button"
                     onClick={() => setLocation("/forgot-password")}
-                    className="text-sm text-blue-400 hover:text-blue-300 underline"
+                    className="text-sm text-blue-400 hover:text-blue-300 underline min-h-[44px] inline-flex items-center active:scale-95 transition-transform"
                   >
                     Forgot password?
                   </button>
                 </div>
                 <Button 
                   type="submit" 
-                  className="w-full"
+                  className="w-full h-12 active:scale-95 transition-transform"
                   disabled={loginMutation.isPending}
                   data-testid="button-login-submit"
                 >

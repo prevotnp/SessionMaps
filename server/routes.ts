@@ -230,7 +230,7 @@ const tilesetUpload = multer({
 });
 
 // Helper to validate and parse JSON requests
-const validateRequest = <T>(schema: any, data: any): { success: boolean; data?: T; error?: string } => {
+const validateRequest = <T extends import("zod").ZodSchema>(schema: T, data: unknown): { success: boolean; data?: import("zod").z.infer<T>; error?: string } => {
   try {
     const validData = schema.parse(data);
     return { success: true, data: validData };
@@ -259,10 +259,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingUser = await dbStorage.getUserByUsername("prevotnp");
       if (existingUser) {
         await dbStorage.setUserAdmin(existingUser.id, true);
-        console.log("Set prevotnp as admin user");
       }
     } catch (error) {
-      console.log("Admin user setup:", error);
+      console.error("Admin user setup error:", error);
     }
   };
   
@@ -453,9 +452,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await dbStorage.createPasswordResetToken(user.id, token, expiresAt);
       
       // Build reset URL
-      const baseUrl = process.env.NODE_ENV === 'production' 
+      const baseUrl = process.env.APP_URL || (process.env.NODE_ENV === 'production' 
         ? 'https://www.sessionmaps.com' 
-        : `http://localhost:5000`;
+        : 'http://localhost:5000');
       const resetUrl = `${baseUrl}/reset-password?token=${token}`;
       
       // Log the reset link (since we don't have email integration yet)
@@ -669,7 +668,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (fileExt.endsWith('.tif') || fileExt.endsWith('.tiff')) {
         try {
-          console.log('Extracting GPS coordinates from GeoTIFF using geotiff.js...');
           
           const tiff = await GeoTIFF.fromFile(filePath);
           const image = await tiff.getImage();
@@ -686,8 +684,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             if (needsReprojection && geoKeys?.ProjectedCSTypeGeoKey) {
               const epsgCode = geoKeys.ProjectedCSTypeGeoKey;
-              console.log(`GeoTIFF uses projected CRS EPSG:${epsgCode}, reprojecting to WGS84...`);
-              
               if (EPSG_DEFINITIONS[epsgCode]) {
                 proj4.defs(`EPSG:${epsgCode}`, EPSG_DEFINITIONS[epsgCode]);
                 
@@ -708,7 +704,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 const corners = [nwWgs84, neWgs84, seWgs84, swWgs84];
                 cornerCoordinates = JSON.stringify(corners);
                 
-                console.log('Reprojected to WGS84 successfully');
               } else {
                 console.warn(`Unknown EPSG code ${epsgCode}, coordinates may be incorrect`);
               }
@@ -731,8 +726,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               northEastLng: east.toString()
             };
             
-            console.log('GeoTIFF extracted corner coordinates:', cornerCoordinates);
-            console.log('GeoTIFF extracted bounding box:', extractedCoords);
           }
         } catch (geotiffError) {
           console.error('GeoTIFF coordinate extraction failed, using provided/default coordinates:', geotiffError);
@@ -775,13 +768,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       try {
         await dbStorage.updateDroneImage(newDroneImage.id, { processingStatus: 'generating_tiles' });
-        console.log(`Starting tile generation for drone image ${newDroneImage.id}...`);
         
         const tileResult = await generateTilesFromImage(
           filePath,
           bounds,
           newDroneImage.id,
-          (percent, message) => console.log(`Tile progress [${newDroneImage.id}]: ${percent}% - ${message}`)
+          () => {}
         );
 
         await dbStorage.updateDroneImage(newDroneImage.id, {
@@ -791,8 +783,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           tileStoragePath: tileResult.storagePath,
           processingStatus: 'complete'
         });
-
-        console.log(`Tile generation complete for image ${newDroneImage.id}: ${tileResult.totalTiles} tiles`);
       } catch (tileError) {
         console.error(`Tile generation failed for image ${newDroneImage.id}:`, tileError);
         await dbStorage.updateDroneImage(newDroneImage.id, { processingStatus: 'failed' });
@@ -1082,14 +1072,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const fileExt = path.extname(file.originalname).toLowerCase().replace('.', '');
       const fileSizeMB = Math.round(file.size / (1024 * 1024));
 
-      // Calculate center coordinates from drone image corner_coordinates (WGS84) if not provided
+      // Calculate center coordinates from drone image cornerCoordinates (WGS84) if not provided
       let calculatedCenterLat = centerLat;
       let calculatedCenterLng = centerLng;
       
       if (!calculatedCenterLat || !calculatedCenterLng) {
-        // Use corner_coordinates if available (these are proper WGS84 lat/lng)
-        if (droneImage.corner_coordinates && Array.isArray(droneImage.corner_coordinates)) {
-          const corners = droneImage.corner_coordinates as [number, number][];
+        // Use cornerCoordinates if available (these are proper WGS84 lat/lng)
+        if (droneImage.cornerCoordinates && Array.isArray(droneImage.cornerCoordinates)) {
+          const corners = droneImage.cornerCoordinates as [number, number][];
           if (corners.length >= 4) {
             // Calculate center from all 4 corners
             const avgLng = corners.reduce((sum, c) => sum + c[0], 0) / corners.length;
@@ -1349,9 +1339,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       };
       listAllFiles(extractDir);
-      console.log(`Cesium tileset upload: found ${allFiles.length} files in zip`);
-      console.log(`File names: ${allFiles.slice(0, 20).map(f => path.relative(extractDir, f)).join(', ')}${allFiles.length > 20 ? '...' : ''}`);
-
       const findTilesetJson = (dir: string): string | null => {
         const entries = fs.readdirSync(dir, { withFileTypes: true });
         for (const entry of entries) {
@@ -1377,7 +1364,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const content = JSON.parse(fs.readFileSync(jsonFile, 'utf-8'));
               if (content.asset || content.root || content.geometricError !== undefined) {
                 tilesetJsonPath = jsonFile;
-                console.log(`Found Cesium tileset at: ${path.relative(extractDir, jsonFile)}`);
                 break;
               }
             } catch {}
@@ -1387,7 +1373,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!tilesetJsonPath) {
         const fileList = allFiles.slice(0, 30).map(f => path.relative(extractDir, f)).join(', ');
-        console.log(`No tileset JSON found. Files: ${fileList}`);
         fs.rmSync(extractDir, { recursive: true, force: true });
         fs.unlinkSync(file.path);
         return res.status(400).json({ message: `No tileset.json found in the uploaded zip file. Found files: ${fileList}` });
@@ -1475,7 +1460,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/cesium-tilesets/:id/tiles/*", async (req, res) => {
     try {
       const tilesetId = parseInt(req.params.id);
-      const tilePath = req.params[0];
+      const tilePath = (req.params as Record<string, string>)[0];
       
       const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
       if (!bucketId) {
@@ -2046,15 +2031,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const user = req.user as any;
     const requestData = { ...req.body, userId: user.id };
     
-    console.log('Route creation request data:', JSON.stringify(requestData, null, 2));
-    console.log('Route creation data types:', Object.keys(requestData).map(key => 
-      `${key}: ${typeof requestData[key]}`
-    ).join(', '));
-    
     const validation = validateRequest(insertRouteSchema, requestData);
     
     if (!validation.success) {
-      console.log('Validation failed:', validation.error);
       return res.status(400).json({ message: validation.error });
     }
     
@@ -2161,9 +2140,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (trailResult.success && trailResult.coordinates.length > 0) {
             finalPathCoordinates = JSON.stringify(trailResult.coordinates);
             finalTotalDistance = trailResult.distance;
-            console.log(`Trail route calculated: ${trailResult.coordinates.length} points, ${trailResult.distance}m`);
           } else {
-            console.log(`Trail routing failed: ${trailResult.message}`);
             // Fall back to direct path if trail routing fails
           }
         } catch (error) {
@@ -2802,8 +2779,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const user = req.user as any;
     const files = req.files as Express.Multer.File[];
 
-    console.log('Route photo upload request:', { routeId, filesReceived: files?.length || 0 });
-
     try {
       const route = await dbStorage.getRoute(routeId);
       if (!route) {
@@ -2815,7 +2790,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (!files || files.length === 0) {
-        console.log('No files received in request. Body keys:', Object.keys(req.body));
         return res.status(400).json({ message: "No photos uploaded" });
       }
 
@@ -2954,7 +2928,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      console.log(`Calculating trail route with ${waypoints.length} waypoints`);
       const result = await calculateTrailRoute(waypoints);
       
       return res.json(result);
@@ -3179,7 +3152,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const pngPath = originalPath.replace(/\.(tiff?|TIF+)$/i, '_web.png');
       
       if (!fs.existsSync(pngPath)) {
-        console.log('Converting GeoTIFF to PNG using Sharp (with black transparency)...');
         try {
           const maxDim = 4096; // Mapbox texture limit safe value
           
@@ -3220,13 +3192,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .png({ compressionLevel: 6 })
             .toFile(pngPath);
           
-          console.log('Sharp PNG conversion with transparency completed successfully');
         } catch (convertError: any) {
           console.error('Sharp conversion failed:', convertError?.message || convertError);
           
           // Try with lower resolution and simpler processing
           try {
-            console.log('Retrying with smaller size...');
             const resizedBuffer = await sharp(originalPath, { limitInputPixels: false })
               .resize(2048, 2048, {
                 fit: 'inside',
@@ -3256,7 +3226,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               .png({ compressionLevel: 6 })
               .toFile(pngPath);
             
-            console.log('Sharp conversion with transparency completed at reduced size');
           } catch (retryError: any) {
             console.error('Sharp retry failed:', retryError?.message || retryError);
             // Fall back to serving original TIFF
@@ -3371,7 +3340,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           droneImage.filePath,
           bounds,
           imageId,
-          (percent, message) => console.log(`Tile progress [${imageId}]: ${percent}% - ${message}`)
+          () => {}
         );
 
         await dbStorage.updateDroneImage(imageId, {
@@ -3381,8 +3350,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           tileStoragePath: tileResult.storagePath,
           processingStatus: 'complete'
         });
-
-        console.log(`Tile generation complete for image ${imageId}: ${tileResult.totalTiles} tiles`);
       } catch (tileError) {
         console.error(`Tile generation failed for image ${imageId}:`, tileError);
         await dbStorage.updateDroneImage(imageId, { processingStatus: 'failed' });
@@ -4633,8 +4600,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const activityData = { ...req.body, userId: user.id };
       
       const validation = validateRequest(insertActivitySchema, activityData);
-      if (!validation.success) {
-        return res.status(400).json({ error: validation.error });
+      if (!validation.success || !validation.data) {
+        return res.status(400).json({ error: validation.error || "Invalid data" });
       }
       
       const activity = await dbStorage.createActivity(validation.data);
