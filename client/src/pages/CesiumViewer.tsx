@@ -140,9 +140,9 @@ export default function CesiumViewer() {
 
         viewer.scene.backgroundColor = C.Color.fromCssColorString('#1a1a2e');
         viewer.scene.globe.show = false;
-        viewer.scene.sun.show = false;
-        viewer.scene.moon.show = false;
-        viewer.scene.skyBox.show = false;
+        if (viewer.scene.sun) viewer.scene.sun.show = false;
+        if (viewer.scene.moon) viewer.scene.moon.show = false;
+        if (viewer.scene.skyBox) viewer.scene.skyBox.show = false;
         viewer.scene.screenSpaceCameraController.enableCollisionDetection = false;
 
         viewerRef.current = viewer;
