@@ -586,7 +586,7 @@ export default function CesiumViewer() {
           onClick={() => setIsRoutesListOpen(!isRoutesListOpen)}
         >
           <List className={`w-5 h-5 mb-0.5 ${isRoutesListOpen ? 'text-blue-400' : ''}`} />
-          <span className="text-[10px] font-medium leading-tight text-center whitespace-pre-line">{'Existing\nRoutes'}</span>
+          <span className="text-[10px] font-medium leading-tight text-center whitespace-pre-line">Routes</span>
         </button>
 
         <button
