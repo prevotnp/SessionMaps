@@ -68,13 +68,11 @@ async function loadCesium(): Promise<any> {
 }
 
 function formatDistance(meters: number): string {
-  if (meters >= 1609.34) {
-    return `${(meters / 1609.34).toFixed(2)} mi`;
+  const feet = meters * 3.28084;
+  if (feet >= 5280) {
+    return `${(feet / 5280).toFixed(2)} mi`;
   }
-  if (meters >= 1) {
-    return `${meters.toFixed(1)} m`;
-  }
-  return `${(meters * 100).toFixed(1)} cm`;
+  return `${Math.round(feet)} ft`;
 }
 
 export default function CesiumViewer() {
