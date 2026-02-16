@@ -481,6 +481,21 @@ export default function CesiumViewer() {
       const west = lon - degSpread;
       const east = lon + degSpread;
 
+      let geoidOffset = 0;
+      try {
+        const centerEleRes = await fetch(
+          `https://api.open-meteo.com/v1/elevation?latitude=${lat.toFixed(5)}&longitude=${lon.toFixed(5)}`
+        );
+        const centerEleJson = await centerEleRes.json();
+        const centerGeoidEle = Array.isArray(centerEleJson.elevation) ? centerEleJson.elevation[0] : centerEleJson.elevation;
+        if (centerGeoidEle != null) {
+          geoidOffset = tilesetHeight - centerGeoidEle;
+          console.log('[MapOverlay] Geoid offset:', geoidOffset, '(tileset ellipsoidal:', tilesetHeight, 'vs open-meteo geoid:', centerGeoidEle, ')');
+        }
+      } catch (e) {
+        console.warn('[MapOverlay] Failed to compute geoid offset:', e);
+      }
+
       console.log('[MapOverlay] Tileset center:', { lat, lon, height: tilesetHeight, topHeight: tilesetTopHeight });
       console.log('[MapOverlay] Bounding radius:', boundingSphere.radius, 'meters, searchRadiusKm:', radiusKm);
       console.log('[MapOverlay] Query bbox:', { south, west, north, east });
@@ -626,7 +641,8 @@ export default function CesiumViewer() {
 
         const getEle = (lat: number, lon: number): number => {
           const key = `${lat.toFixed(4)},${lon.toFixed(4)}`;
-          return elevationCache.get(key) ?? tilesetHeight;
+          const geoidEle = elevationCache.get(key) ?? (tilesetHeight - geoidOffset);
+          return geoidEle + geoidOffset;
         };
 
         for (const trail of trailPaths) {
@@ -698,7 +714,7 @@ export default function CesiumViewer() {
 
           let surfaceHeight: number;
           if (isPeak && feature.ele) {
-            surfaceHeight = parseFloat(feature.ele) + 3;
+            surfaceHeight = parseFloat(feature.ele) + geoidOffset + 3;
           } else {
             surfaceHeight = getEle(feature.lat, feature.lon) + 3;
           }
