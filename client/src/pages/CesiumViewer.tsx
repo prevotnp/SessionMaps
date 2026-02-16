@@ -575,9 +575,7 @@ export default function CesiumViewer() {
           const isTrail = ['path', 'track', 'footway', 'cycleway', 'trail'].includes(trail.type);
           const isWater = trail.type === 'stream' || trail.type === 'river';
 
-          const positions = trail.coords.flatMap(c =>
-            [c.lon, c.lat, tilesetHeight + 1]
-          );
+          const positions = trail.coords.flatMap(c => [c.lon, c.lat]);
 
           let lineColor = C.Color.WHITE.withAlpha(0.9);
           if (isTrail) lineColor = C.Color.fromCssColorString('#00FF88');
@@ -591,11 +589,11 @@ export default function CesiumViewer() {
 
           const entity = viewer.entities.add({
             polyline: {
-              positions: C.Cartesian3.fromDegreesArrayHeights(positions),
+              positions: C.Cartesian3.fromDegreesArray(positions),
               width: isTrail ? 6 : 4,
               material: dashMaterial,
-              depthFailMaterial: dashMaterial,
-              clampToGround: false,
+              clampToGround: true,
+              classificationType: C.ClassificationType.BOTH,
             },
           });
           overlayLabelsRef.current.push(entity);
