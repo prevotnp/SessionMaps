@@ -574,50 +574,59 @@ export default function CesiumViewer() {
 
         const elevationCache = new Map<string, number>();
 
-        const batchGetElevations = async (coords: Array<{lat: number; lon: number}>): Promise<number[]> => {
-          const results: number[] = new Array(coords.length).fill(tilesetHeight);
-          const uncachedIndices: number[] = [];
+        const allUniqueCoords: Array<{lat: number; lon: number}> = [];
+        const coordKeySet = new Set<string>();
 
-          coords.forEach((c, i) => {
-            const key = `${c.lat.toFixed(5)},${c.lon.toFixed(5)}`;
-            if (elevationCache.has(key)) {
-              results[i] = elevationCache.get(key)!;
-            } else {
-              uncachedIndices.push(i);
+        for (const trail of trailPaths) {
+          for (const c of trail.coords) {
+            const key = `${c.lat.toFixed(4)},${c.lon.toFixed(4)}`;
+            if (!coordKeySet.has(key)) {
+              coordKeySet.add(key);
+              allUniqueCoords.push(c);
             }
-          });
+          }
+        }
+        for (const feature of labeledFeatures) {
+          const key = `${feature.lat.toFixed(4)},${feature.lon.toFixed(4)}`;
+          if (!coordKeySet.has(key)) {
+            coordKeySet.add(key);
+            allUniqueCoords.push({lat: feature.lat, lon: feature.lon});
+          }
+        }
 
-          if (uncachedIndices.length === 0) return results;
+        console.log('[MapOverlay] Fetching elevation for', allUniqueCoords.length, 'unique coordinates');
 
-          const batchSize = 100;
-          for (let b = 0; b < uncachedIndices.length; b += batchSize) {
-            const batch = uncachedIndices.slice(b, b + batchSize);
-            const lats = batch.map(i => coords[i].lat.toFixed(5)).join(',');
-            const lons = batch.map(i => coords[i].lon.toFixed(5)).join(',');
-            try {
-              const res = await fetch(
-                `https://api.open-meteo.com/v1/elevation?latitude=${lats}&longitude=${lons}`
-              );
+        const batchSize = 100;
+        for (let b = 0; b < allUniqueCoords.length; b += batchSize) {
+          const batch = allUniqueCoords.slice(b, b + batchSize);
+          const lats = batch.map(c => c.lat.toFixed(5)).join(',');
+          const lons = batch.map(c => c.lon.toFixed(5)).join(',');
+          try {
+            const res = await fetch(
+              `https://api.open-meteo.com/v1/elevation?latitude=${lats}&longitude=${lons}`
+            );
+            if (res.ok) {
               const json = await res.json();
               if (json.elevation) {
                 const elevArr = Array.isArray(json.elevation) ? json.elevation : [json.elevation];
-                batch.forEach((origIdx, j) => {
-                  const ele = elevArr[j] ?? tilesetHeight;
-                  results[origIdx] = ele;
-                  const key = `${coords[origIdx].lat.toFixed(5)},${coords[origIdx].lon.toFixed(5)}`;
-                  elevationCache.set(key, ele);
+                batch.forEach((c, j) => {
+                  const key = `${c.lat.toFixed(4)},${c.lon.toFixed(4)}`;
+                  elevationCache.set(key, elevArr[j] ?? tilesetHeight);
                 });
               }
-            } catch (e) {
-              console.warn('[MapOverlay] Elevation batch fetch failed:', e);
+            } else {
+              console.warn('[MapOverlay] Elevation API returned', res.status);
             }
+          } catch (e) {
+            console.warn('[MapOverlay] Elevation batch fetch failed:', e);
           }
-          return results;
-        };
+        }
 
-        const getElevation = async (lat: number, lon: number): Promise<number> => {
-          const results = await batchGetElevations([{lat, lon}]);
-          return results[0];
+        console.log('[MapOverlay] Elevation cache populated with', elevationCache.size, 'entries');
+
+        const getEle = (lat: number, lon: number): number => {
+          const key = `${lat.toFixed(4)},${lon.toFixed(4)}`;
+          return elevationCache.get(key) ?? tilesetHeight;
         };
 
         for (const trail of trailPaths) {
@@ -625,15 +634,8 @@ export default function CesiumViewer() {
           const isPiste = trail.type === 'piste';
           const isWater = trail.type === 'stream' || trail.type === 'river';
 
-          let elevations: number[];
-          try {
-            elevations = await batchGetElevations(trail.coords);
-          } catch (e) {
-            elevations = trail.coords.map(() => tilesetHeight);
-          }
-
-          const positions = trail.coords.flatMap((c, i) =>
-            [c.lon, c.lat, elevations[i] + 1]
+          const positions = trail.coords.flatMap((c) =>
+            [c.lon, c.lat, getEle(c.lat, c.lon) + 1]
           );
 
           let lineColor = C.Color.WHITE.withAlpha(0.9);
@@ -698,7 +700,7 @@ export default function CesiumViewer() {
           if (isPeak && feature.ele) {
             surfaceHeight = parseFloat(feature.ele) + 3;
           } else {
-            surfaceHeight = (await getElevation(feature.lat, feature.lon)) + 3;
+            surfaceHeight = getEle(feature.lat, feature.lon) + 3;
           }
 
           const position = C.Cartesian3.fromDegrees(feature.lon, feature.lat, surfaceHeight);
