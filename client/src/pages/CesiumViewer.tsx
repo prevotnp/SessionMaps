@@ -571,44 +571,28 @@ export default function CesiumViewer() {
         console.log('[MapOverlay] Labeled features:', labeledFeatures.length, 'Trail paths:', trailPaths.length);
         console.log('[MapOverlay] Tileset height:', tilesetHeight);
 
-        const trailPromises = trailPaths.map(async (trail) => {
+        trailPaths.forEach((trail) => {
           const isTrail = ['path', 'track', 'footway', 'cycleway', 'trail'].includes(trail.type);
           const isWater = trail.type === 'stream' || trail.type === 'river';
 
-          const cartesians = trail.coords.map(c =>
-            C.Cartesian3.fromDegrees(c.lon, c.lat, 0)
+          const positions = trail.coords.map(c =>
+            C.Cartesian3.fromDegrees(c.lon, c.lat)
           );
-
-          let clampedPositions: any[];
-          try {
-            const objectsToExclude: any[] = [];
-            clampedPositions = await viewer.scene.clampToHeightMostDetailed(cartesians, objectsToExclude, 6);
-          } catch (e) {
-            clampedPositions = cartesians;
-          }
 
           let lineColor = C.Color.WHITE.withAlpha(0.9);
           if (isTrail) lineColor = C.Color.fromCssColorString('#00FF88');
           else if (isWater) lineColor = C.Color.fromCssColorString('#4FC3F7').withAlpha(0.85);
 
-          const dashMaterial = new C.PolylineDashMaterialProperty({
-            color: lineColor,
-            dashLength: isTrail ? 16 : 12,
-            dashPattern: 255,
-          });
-
           const entity = viewer.entities.add({
             polyline: {
-              positions: clampedPositions,
+              positions: positions,
               width: isTrail ? 6 : 4,
-              material: dashMaterial,
-              depthFailMaterial: dashMaterial,
-              clampToGround: false,
+              material: new C.ColorMaterialProperty(lineColor),
+              clampToGround: true,
             },
           });
           overlayLabelsRef.current.push(entity);
         });
-        await Promise.all(trailPromises);
 
         labeledFeatures.forEach((feature) => {
           const isPeak = feature.type === 'peak' || feature.type === 'saddle';
