@@ -610,7 +610,7 @@ export default function CesiumViewer() {
         });
         await Promise.all(trailPromises);
 
-        labeledFeatures.forEach((feature) => {
+        const labelPromises = labeledFeatures.map(async (feature) => {
           const isPeak = feature.type === 'peak' || feature.type === 'saddle';
           const isTrail = ['path', 'track', 'footway', 'cycleway', 'trail'].includes(feature.type);
           const isRoad = ['primary', 'secondary', 'tertiary', 'residential', 'unclassified'].includes(feature.type);
@@ -640,13 +640,18 @@ export default function CesiumViewer() {
             fontSize = '12px';
           }
 
-          let surfaceHeight = tilesetHeight;
-
+          let clampedPosition: any;
           if (isPeak && feature.ele) {
-            surfaceHeight = parseFloat(feature.ele);
+            clampedPosition = C.Cartesian3.fromDegrees(feature.lon, feature.lat, parseFloat(feature.ele) + 3);
+          } else {
+            const rawPos = C.Cartesian3.fromDegrees(feature.lon, feature.lat, 0);
+            try {
+              const results = await viewer.scene.clampToHeightMostDetailed([rawPos], [], 6);
+              clampedPosition = results[0];
+            } catch (e) {
+              clampedPosition = rawPos;
+            }
           }
-
-          const clampedPosition = C.Cartesian3.fromDegrees(feature.lon, feature.lat, surfaceHeight + 3);
 
           const entity = viewer.entities.add({
             position: clampedPosition,
@@ -670,8 +675,8 @@ export default function CesiumViewer() {
           });
 
           if (isPeak) {
-            viewer.entities.add({
-              position: C.Cartesian3.fromDegrees(feature.lon, feature.lat, surfaceHeight),
+            const peakDot = viewer.entities.add({
+              position: clampedPosition,
               point: {
                 pixelSize: 8,
                 color: C.Color.fromCssColorString('#FFD700'),
@@ -681,11 +686,12 @@ export default function CesiumViewer() {
                 heightReference: C.HeightReference.NONE,
               },
             });
-            overlayLabelsRef.current.push(entity);
+            overlayLabelsRef.current.push(peakDot);
           }
 
           overlayLabelsRef.current.push(entity);
         });
+        await Promise.all(labelPromises);
       } catch (err) {
         console.error('Failed to fetch map overlay data:', err);
       }
