@@ -87,6 +87,7 @@ export default function CesiumViewer() {
   const watchIdRef = useRef<number | null>(null);
   const measurePointsRef = useRef<any[]>([]);
   const measureEntitiesRef = useRef<any[]>([]);
+  const overlayLabelsRef = useRef<any[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -460,35 +461,149 @@ export default function CesiumViewer() {
   }, []);
 
   const toggleMapOverlay = useCallback(async () => {
-    if (!viewerRef.current) return;
-    const mapboxToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
-    if (!mapboxToken) return;
+    if (!viewerRef.current || !tilesetRef.current) return;
     const viewer = viewerRef.current;
     const C = await loadCesium();
     const newState = !mapOverlayActive;
     setMapOverlayActive(newState);
 
     if (newState) {
-      const mapboxProvider = new C.UrlTemplateImageryProvider({
-        url: `https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/tiles/256/{z}/{x}/{y}?access_token=${mapboxToken}`,
-        minimumLevel: 0,
-        maximumLevel: 22,
-        tileWidth: 256,
-        tileHeight: 256,
-        credit: new C.Credit('Mapbox'),
-      });
-      const layer = viewer.imageryLayers.addImageryProvider(mapboxProvider);
-      layer.alpha = 0.65;
-      viewer.scene.globe.show = true;
-      viewer.scene.globe.baseColor = C.Color.BLACK;
-      viewer.scene.globe.translucency.enabled = true;
-      viewer.scene.globe.translucency.frontFaceAlpha = 0.6;
-      viewer.scene.globe.translucency.backFaceAlpha = 0.0;
-      viewer.scene.globe.depthTestAgainstTerrain = false;
+      const boundingSphere = tilesetRef.current.boundingSphere;
+      const center = C.Cartographic.fromCartesian(boundingSphere.center);
+      const lat = C.Math.toDegrees(center.latitude);
+      const lon = C.Math.toDegrees(center.longitude);
+      const radiusKm = Math.max(boundingSphere.radius / 1000, 2);
+      const degSpread = radiusKm / 111;
+      const south = lat - degSpread;
+      const north = lat + degSpread;
+      const west = lon - degSpread;
+      const east = lon + degSpread;
+
+      const query = `
+        [out:json][timeout:15];
+        (
+          way["highway"~"path|track|footway|cycleway|trail"]["name"](${south},${west},${north},${east});
+          way["highway"~"primary|secondary|tertiary|residential|unclassified"]["name"](${south},${west},${north},${east});
+          node["natural"="peak"]["name"](${south},${west},${north},${east});
+          node["natural"="saddle"]["name"](${south},${west},${north},${east});
+          node["tourism"~"viewpoint|alpine_hut"]["name"](${south},${west},${north},${east});
+          way["waterway"]["name"](${south},${west},${north},${east});
+          node["place"~"locality|hamlet"]["name"](${south},${west},${north},${east});
+        );
+        out body;
+        >;
+        out skel qt;
+      `;
+
+      try {
+        const response = await fetch('https://overpass-api.de/api/interpreter', {
+          method: 'POST',
+          body: `data=${encodeURIComponent(query)}`,
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        });
+        const data = await response.json();
+
+        const nodesMap = new Map<number, { lat: number; lon: number }>();
+        data.elements.forEach((el: any) => {
+          if (el.type === 'node') {
+            nodesMap.set(el.id, { lat: el.lat, lon: el.lon });
+          }
+        });
+
+        const labeledFeatures: Array<{ name: string; lat: number; lon: number; type: string; ele?: string }> = [];
+        const seenNames = new Set<string>();
+
+        data.elements.forEach((el: any) => {
+          if (!el.tags?.name) return;
+          const nameKey = el.tags.name;
+
+          if (el.type === 'node') {
+            if (seenNames.has(nameKey)) return;
+            seenNames.add(nameKey);
+            labeledFeatures.push({
+              name: el.tags.name,
+              lat: el.lat,
+              lon: el.lon,
+              type: el.tags.natural || el.tags.tourism || el.tags.place || 'point',
+              ele: el.tags.ele,
+            });
+          } else if (el.type === 'way' && el.nodes?.length > 0) {
+            if (seenNames.has(nameKey)) return;
+            seenNames.add(nameKey);
+            const midIdx = Math.floor(el.nodes.length / 2);
+            const midNode = nodesMap.get(el.nodes[midIdx]);
+            if (midNode) {
+              labeledFeatures.push({
+                name: el.tags.name,
+                lat: midNode.lat,
+                lon: midNode.lon,
+                type: el.tags.highway || el.tags.waterway || 'way',
+              });
+            }
+          }
+        });
+
+        const tilesetHeight = center.height;
+
+        labeledFeatures.forEach((feature) => {
+          const isPeak = feature.type === 'peak' || feature.type === 'saddle';
+          const isTrail = ['path', 'track', 'footway', 'cycleway', 'trail'].includes(feature.type);
+          const isRoad = ['primary', 'secondary', 'tertiary', 'residential', 'unclassified'].includes(feature.type);
+          const isWater = feature.type === 'stream' || feature.type === 'river';
+
+          let labelColor = C.Color.WHITE;
+          let fontSize = '13px';
+          let text = feature.name;
+
+          if (isPeak) {
+            labelColor = C.Color.fromCssColorString('#FFD700');
+            fontSize = '14px';
+            if (feature.ele) {
+              const elevFeet = Math.round(parseFloat(feature.ele) * 3.28084);
+              text = `▲ ${feature.name} (${elevFeet.toLocaleString()} ft)`;
+            } else {
+              text = `▲ ${feature.name}`;
+            }
+          } else if (isTrail) {
+            labelColor = C.Color.fromCssColorString('#00FF88');
+            fontSize = '12px';
+          } else if (isRoad) {
+            labelColor = C.Color.fromCssColorString('#FFFFFF');
+            fontSize = '11px';
+          } else if (isWater) {
+            labelColor = C.Color.fromCssColorString('#4FC3F7');
+            fontSize = '11px';
+          }
+
+          const entity = viewer.entities.add({
+            position: C.Cartesian3.fromDegrees(feature.lon, feature.lat, tilesetHeight + 50),
+            label: {
+              text: text,
+              font: `bold ${fontSize} sans-serif`,
+              fillColor: labelColor,
+              outlineColor: C.Color.BLACK,
+              outlineWidth: 3,
+              style: C.LabelStyle.FILL_AND_OUTLINE,
+              disableDepthTestDistance: Number.POSITIVE_INFINITY,
+              verticalOrigin: C.VerticalOrigin.BOTTOM,
+              pixelOffset: new C.Cartesian2(0, -5),
+              scaleByDistance: new C.NearFarScalar(100, 1.2, 5000, 0.4),
+              translucencyByDistance: new C.NearFarScalar(100, 1.0, 8000, 0.3),
+              showBackground: true,
+              backgroundColor: C.Color.BLACK.withAlpha(0.5),
+              backgroundPadding: new C.Cartesian2(6, 4),
+            },
+          });
+          overlayLabelsRef.current.push(entity);
+        });
+      } catch (err) {
+        console.error('Failed to fetch map overlay data:', err);
+      }
     } else {
-      viewer.imageryLayers.removeAll();
-      viewer.scene.globe.translucency.enabled = false;
-      viewer.scene.globe.show = false;
+      overlayLabelsRef.current.forEach(entity => {
+        try { viewer.entities.remove(entity); } catch (_) {}
+      });
+      overlayLabelsRef.current = [];
     }
     viewer.scene.requestRender();
   }, [mapOverlayActive]);
@@ -650,15 +765,13 @@ export default function CesiumViewer() {
           </button>
         )}
 
-        {import.meta.env.VITE_MAPBOX_ACCESS_TOKEN && (
-          <button
-            className={`flex flex-col items-center justify-center w-16 h-16 rounded-lg bg-gray-900/80 border text-white hover:bg-gray-800 transition-colors ${mapOverlayActive ? 'ring-2 ring-emerald-400 border-emerald-400' : 'border-white/20'}`}
-            onClick={toggleMapOverlay}
-          >
-            <Layers className={`w-5 h-5 mb-0.5 ${mapOverlayActive ? 'text-emerald-400' : ''}`} />
-            <span className="text-[10px] font-medium leading-tight text-center whitespace-pre-line">{'Map\nOverlay'}</span>
-          </button>
-        )}
+        <button
+          className={`flex flex-col items-center justify-center w-16 h-16 rounded-lg bg-gray-900/80 border text-white hover:bg-gray-800 transition-colors ${mapOverlayActive ? 'ring-2 ring-emerald-400 border-emerald-400' : 'border-white/20'}`}
+          onClick={toggleMapOverlay}
+        >
+          <Layers className={`w-5 h-5 mb-0.5 ${mapOverlayActive ? 'text-emerald-400' : ''}`} />
+          <span className="text-[10px] font-medium leading-tight text-center whitespace-pre-line">{'Map\nOverlay'}</span>
+        </button>
 
         <div className="border-t border-white/10 pt-1.5 flex flex-col gap-1.5 w-full">
           <div className="flex gap-1.5 justify-end">
