@@ -519,6 +519,7 @@ export default function CesiumViewer() {
         });
 
         const labeledFeatures: Array<{ name: string; lat: number; lon: number; type: string; ele?: string }> = [];
+        const trailPaths: Array<{ name: string; coords: Array<{ lat: number; lon: number }>; type: string }> = [];
         const seenNames = new Set<string>();
 
         data.elements.forEach((el: any) => {
@@ -536,23 +537,69 @@ export default function CesiumViewer() {
               ele: el.tags.ele,
             });
           } else if (el.type === 'way' && el.nodes?.length > 0) {
-            if (seenNames.has(nameKey)) return;
-            seenNames.add(nameKey);
-            const midIdx = Math.floor(el.nodes.length / 2);
-            const midNode = nodesMap.get(el.nodes[midIdx]);
-            if (midNode) {
-              labeledFeatures.push({
+            const wayType = el.tags.highway || el.tags.waterway || 'way';
+            const coords: Array<{ lat: number; lon: number }> = [];
+            el.nodes.forEach((nodeId: number) => {
+              const node = nodesMap.get(nodeId);
+              if (node) coords.push(node);
+            });
+
+            if (coords.length > 1) {
+              trailPaths.push({
                 name: el.tags.name,
-                lat: midNode.lat,
-                lon: midNode.lon,
-                type: el.tags.highway || el.tags.waterway || 'way',
+                coords,
+                type: wayType,
               });
+            }
+
+            if (!seenNames.has(nameKey)) {
+              seenNames.add(nameKey);
+              const midIdx = Math.floor(coords.length / 2);
+              const midCoord = coords[midIdx] || coords[0];
+              if (midCoord) {
+                labeledFeatures.push({
+                  name: el.tags.name,
+                  lat: midCoord.lat,
+                  lon: midCoord.lon,
+                  type: wayType,
+                });
+              }
             }
           }
         });
 
-        console.log('[MapOverlay] Labeled features found:', labeledFeatures.length, labeledFeatures.map(f => `${f.name} (${f.type})`));
-        console.log('[MapOverlay] Tileset height for label placement:', tilesetHeight, 'topHeight:', tilesetTopHeight);
+        console.log('[MapOverlay] Labeled features:', labeledFeatures.length, 'Trail paths:', trailPaths.length);
+        console.log('[MapOverlay] Tileset height:', tilesetHeight);
+
+        trailPaths.forEach((trail) => {
+          const isTrail = ['path', 'track', 'footway', 'cycleway', 'trail'].includes(trail.type);
+          const isWater = trail.type === 'stream' || trail.type === 'river';
+
+          const positions = trail.coords.flatMap(c =>
+            [c.lon, c.lat, tilesetHeight + 10]
+          );
+
+          let lineColor = C.Color.WHITE.withAlpha(0.9);
+          if (isTrail) lineColor = C.Color.fromCssColorString('#00FF88').withAlpha(0.85);
+          else if (isWater) lineColor = C.Color.fromCssColorString('#4FC3F7').withAlpha(0.85);
+
+          const dashMaterial = new C.PolylineDashMaterialProperty({
+            color: lineColor,
+            dashLength: isTrail ? 16 : 12,
+            dashPattern: 255,
+          });
+
+          const entity = viewer.entities.add({
+            polyline: {
+              positions: C.Cartesian3.fromDegreesArrayHeights(positions),
+              width: isTrail ? 3 : 2,
+              material: dashMaterial,
+              depthFailMaterial: dashMaterial,
+              clampToGround: false,
+            },
+          });
+          overlayLabelsRef.current.push(entity);
+        });
 
         labeledFeatures.forEach((feature) => {
           const isPeak = feature.type === 'peak' || feature.type === 'saddle';
