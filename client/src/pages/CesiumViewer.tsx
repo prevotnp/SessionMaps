@@ -474,7 +474,7 @@ export default function CesiumViewer() {
       const lon = C.Math.toDegrees(center.longitude);
       const tilesetHeight = center.height;
       const tilesetTopHeight = tilesetHeight + boundingSphere.radius;
-      const radiusKm = Math.max(boundingSphere.radius / 100, 5);
+      const radiusKm = Math.max(boundingSphere.radius / 100, 16);
       const degSpread = radiusKm / 111;
       const south = lat - degSpread;
       const north = lat + degSpread;
@@ -486,7 +486,7 @@ export default function CesiumViewer() {
       console.log('[MapOverlay] Query bbox:', { south, west, north, east });
 
       const query = `
-        [out:json][timeout:25];
+        [out:json][timeout:45];
         (
           way["highway"~"path|track|footway|cycleway|trail"]["name"](${south},${west},${north},${east});
           way["highway"~"primary|secondary|tertiary|residential|unclassified"]["name"](${south},${west},${north},${east});
