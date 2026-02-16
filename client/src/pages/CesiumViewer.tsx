@@ -552,7 +552,7 @@ export default function CesiumViewer() {
         });
 
         console.log('[MapOverlay] Labeled features found:', labeledFeatures.length, labeledFeatures.map(f => `${f.name} (${f.type})`));
-        console.log('[MapOverlay] Tileset height for label placement:', tilesetHeight);
+        console.log('[MapOverlay] Tileset height for label placement:', tilesetHeight, 'topHeight:', tilesetTopHeight);
 
         labeledFeatures.forEach((feature) => {
           const isPeak = feature.type === 'peak' || feature.type === 'saddle';
@@ -561,12 +561,12 @@ export default function CesiumViewer() {
           const isWater = feature.type === 'stream' || feature.type === 'river';
 
           let labelColor = C.Color.WHITE;
-          let fontSize = '13px';
+          let fontSize = '14px';
           let text = feature.name;
 
           if (isPeak) {
             labelColor = C.Color.fromCssColorString('#FFD700');
-            fontSize = '14px';
+            fontSize = '15px';
             if (feature.ele) {
               const elevFeet = Math.round(parseFloat(feature.ele) * 3.28084);
               text = `▲ ${feature.name} (${elevFeet.toLocaleString()} ft)`;
@@ -575,21 +575,25 @@ export default function CesiumViewer() {
             }
           } else if (isTrail) {
             labelColor = C.Color.fromCssColorString('#00FF88');
-            fontSize = '12px';
+            fontSize = '13px';
           } else if (isRoad) {
             labelColor = C.Color.fromCssColorString('#FFFFFF');
-            fontSize = '11px';
+            fontSize = '12px';
           } else if (isWater) {
             labelColor = C.Color.fromCssColorString('#4FC3F7');
-            fontSize = '11px';
+            fontSize = '12px';
           }
 
-          const labelHeight = isPeak && feature.ele
-            ? parseFloat(feature.ele) + 100
-            : tilesetTopHeight + 100;
+          let surfaceHeight = tilesetHeight;
+
+          if (isPeak && feature.ele) {
+            surfaceHeight = parseFloat(feature.ele);
+          }
+
+          const clampedPosition = C.Cartesian3.fromDegrees(feature.lon, feature.lat, surfaceHeight + 15);
 
           const entity = viewer.entities.add({
-            position: C.Cartesian3.fromDegrees(feature.lon, feature.lat, labelHeight),
+            position: clampedPosition,
             label: {
               text: text,
               font: `bold ${fontSize} sans-serif`,
@@ -600,14 +604,30 @@ export default function CesiumViewer() {
               disableDepthTestDistance: Number.POSITIVE_INFINITY,
               heightReference: C.HeightReference.NONE,
               verticalOrigin: C.VerticalOrigin.BOTTOM,
-              pixelOffset: new C.Cartesian2(0, -5),
-              scaleByDistance: new C.NearFarScalar(200, 1.4, 8000, 0.5),
-              translucencyByDistance: new C.NearFarScalar(200, 1.0, 12000, 0.2),
+              pixelOffset: new C.Cartesian2(0, -8),
+              scaleByDistance: new C.NearFarScalar(100, 1.5, 10000, 0.4),
+              translucencyByDistance: new C.NearFarScalar(100, 1.0, 15000, 0.1),
               showBackground: true,
-              backgroundColor: C.Color.BLACK.withAlpha(0.6),
+              backgroundColor: C.Color.BLACK.withAlpha(0.55),
               backgroundPadding: new C.Cartesian2(8, 5),
             },
           });
+
+          if (isPeak) {
+            viewer.entities.add({
+              position: C.Cartesian3.fromDegrees(feature.lon, feature.lat, surfaceHeight),
+              point: {
+                pixelSize: 8,
+                color: C.Color.fromCssColorString('#FFD700'),
+                outlineColor: C.Color.BLACK,
+                outlineWidth: 2,
+                disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                heightReference: C.HeightReference.NONE,
+              },
+            });
+            overlayLabelsRef.current.push(entity);
+          }
+
           overlayLabelsRef.current.push(entity);
         });
       } catch (err) {
