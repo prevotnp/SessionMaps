@@ -472,12 +472,18 @@ export default function CesiumViewer() {
       const center = C.Cartographic.fromCartesian(boundingSphere.center);
       const lat = C.Math.toDegrees(center.latitude);
       const lon = C.Math.toDegrees(center.longitude);
-      const radiusKm = Math.max(boundingSphere.radius / 1000, 2);
+      const tilesetHeight = center.height;
+      const tilesetTopHeight = tilesetHeight + boundingSphere.radius;
+      const radiusKm = Math.max(boundingSphere.radius / 500, 3);
       const degSpread = radiusKm / 111;
       const south = lat - degSpread;
       const north = lat + degSpread;
       const west = lon - degSpread;
       const east = lon + degSpread;
+
+      console.log('[MapOverlay] Tileset center:', { lat, lon, height: tilesetHeight, topHeight: tilesetTopHeight });
+      console.log('[MapOverlay] Bounding radius:', boundingSphere.radius, 'meters, searchRadiusKm:', radiusKm);
+      console.log('[MapOverlay] Query bbox:', { south, west, north, east });
 
       const query = `
         [out:json][timeout:15];
@@ -502,6 +508,8 @@ export default function CesiumViewer() {
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         });
         const data = await response.json();
+
+        console.log('[MapOverlay] Overpass response elements:', data.elements?.length || 0);
 
         const nodesMap = new Map<number, { lat: number; lon: number }>();
         data.elements.forEach((el: any) => {
@@ -543,7 +551,8 @@ export default function CesiumViewer() {
           }
         });
 
-        const tilesetHeight = center.height;
+        console.log('[MapOverlay] Labeled features found:', labeledFeatures.length, labeledFeatures.map(f => `${f.name} (${f.type})`));
+        console.log('[MapOverlay] Tileset height for label placement:', tilesetHeight);
 
         labeledFeatures.forEach((feature) => {
           const isPeak = feature.type === 'peak' || feature.type === 'saddle';
@@ -575,8 +584,12 @@ export default function CesiumViewer() {
             fontSize = '11px';
           }
 
+          const labelHeight = isPeak && feature.ele
+            ? parseFloat(feature.ele) + 100
+            : tilesetTopHeight + 100;
+
           const entity = viewer.entities.add({
-            position: C.Cartesian3.fromDegrees(feature.lon, feature.lat, tilesetHeight + 50),
+            position: C.Cartesian3.fromDegrees(feature.lon, feature.lat, labelHeight),
             label: {
               text: text,
               font: `bold ${fontSize} sans-serif`,
@@ -585,13 +598,14 @@ export default function CesiumViewer() {
               outlineWidth: 3,
               style: C.LabelStyle.FILL_AND_OUTLINE,
               disableDepthTestDistance: Number.POSITIVE_INFINITY,
+              heightReference: C.HeightReference.NONE,
               verticalOrigin: C.VerticalOrigin.BOTTOM,
               pixelOffset: new C.Cartesian2(0, -5),
-              scaleByDistance: new C.NearFarScalar(100, 1.2, 5000, 0.4),
-              translucencyByDistance: new C.NearFarScalar(100, 1.0, 8000, 0.3),
+              scaleByDistance: new C.NearFarScalar(200, 1.4, 8000, 0.5),
+              translucencyByDistance: new C.NearFarScalar(200, 1.0, 12000, 0.2),
               showBackground: true,
-              backgroundColor: C.Color.BLACK.withAlpha(0.5),
-              backgroundPadding: new C.Cartesian2(6, 4),
+              backgroundColor: C.Color.BLACK.withAlpha(0.6),
+              backgroundPadding: new C.Cartesian2(8, 5),
             },
           });
           overlayLabelsRef.current.push(entity);
