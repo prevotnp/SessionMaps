@@ -490,6 +490,7 @@ export default function CesiumViewer() {
         (
           way["highway"~"path|track|footway|cycleway|trail"]["name"](${south},${west},${north},${east});
           way["highway"~"primary|secondary|tertiary|residential|unclassified"]["name"](${south},${west},${north},${east});
+          way["piste:type"]["name"](${south},${west},${north},${east});
           node["natural"="peak"]["name"](${south},${west},${north},${east});
           node["natural"="saddle"]["name"](${south},${west},${north},${east});
           node["tourism"~"viewpoint|alpine_hut"]["name"](${south},${west},${north},${east});
@@ -537,7 +538,7 @@ export default function CesiumViewer() {
               ele: el.tags.ele,
             });
           } else if (el.type === 'way' && el.nodes?.length > 0) {
-            const wayType = el.tags.highway || el.tags.waterway || 'way';
+            const wayType = el.tags['piste:type'] ? 'piste' : (el.tags.highway || el.tags.waterway || 'way');
             const coords: Array<{ lat: number; lon: number }> = [];
             el.nodes.forEach((nodeId: number) => {
               const node = nodesMap.get(nodeId);
@@ -573,6 +574,7 @@ export default function CesiumViewer() {
 
         trailPaths.forEach((trail) => {
           const isTrail = ['path', 'track', 'footway', 'cycleway', 'trail'].includes(trail.type);
+          const isPiste = trail.type === 'piste';
           const isWater = trail.type === 'stream' || trail.type === 'river';
 
           const positions = trail.coords.flatMap(c =>
@@ -580,19 +582,20 @@ export default function CesiumViewer() {
           );
 
           let lineColor = C.Color.WHITE.withAlpha(0.9);
-          if (isTrail) lineColor = C.Color.fromCssColorString('#00FF88');
+          if (isPiste) lineColor = C.Color.fromCssColorString('#FF4444');
+          else if (isTrail) lineColor = C.Color.fromCssColorString('#00FF88');
           else if (isWater) lineColor = C.Color.fromCssColorString('#4FC3F7').withAlpha(0.85);
 
           const dashMaterial = new C.PolylineDashMaterialProperty({
             color: lineColor,
-            dashLength: isTrail ? 16 : 12,
+            dashLength: (isTrail || isPiste) ? 16 : 12,
             dashPattern: 255,
           });
 
           const entity = viewer.entities.add({
             polyline: {
               positions: C.Cartesian3.fromDegreesArrayHeights(positions),
-              width: isTrail ? 6 : 4,
+              width: (isTrail || isPiste) ? 6 : 4,
               material: dashMaterial,
               depthFailMaterial: dashMaterial,
               clampToGround: false,
@@ -604,6 +607,7 @@ export default function CesiumViewer() {
         labeledFeatures.forEach((feature) => {
           const isPeak = feature.type === 'peak' || feature.type === 'saddle';
           const isTrail = ['path', 'track', 'footway', 'cycleway', 'trail'].includes(feature.type);
+          const isPiste = feature.type === 'piste';
           const isRoad = ['primary', 'secondary', 'tertiary', 'residential', 'unclassified'].includes(feature.type);
           const isWater = feature.type === 'stream' || feature.type === 'river';
 
@@ -620,6 +624,10 @@ export default function CesiumViewer() {
             } else {
               text = `▲ ${feature.name}`;
             }
+          } else if (isPiste) {
+            labelColor = C.Color.fromCssColorString('#FF4444');
+            fontSize = '13px';
+            text = `⛷ ${feature.name}`;
           } else if (isTrail) {
             labelColor = C.Color.fromCssColorString('#00FF88');
             fontSize = '13px';
