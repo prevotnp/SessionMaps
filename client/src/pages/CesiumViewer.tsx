@@ -571,11 +571,21 @@ export default function CesiumViewer() {
         console.log('[MapOverlay] Labeled features:', labeledFeatures.length, 'Trail paths:', trailPaths.length);
         console.log('[MapOverlay] Tileset height:', tilesetHeight);
 
-        trailPaths.forEach((trail) => {
+        const trailPromises = trailPaths.map(async (trail) => {
           const isTrail = ['path', 'track', 'footway', 'cycleway', 'trail'].includes(trail.type);
           const isWater = trail.type === 'stream' || trail.type === 'river';
 
-          const positions = trail.coords.flatMap(c => [c.lon, c.lat]);
+          const cartesians = trail.coords.map(c =>
+            C.Cartesian3.fromDegrees(c.lon, c.lat, 0)
+          );
+
+          let clampedPositions: any[];
+          try {
+            const objectsToExclude: any[] = [];
+            clampedPositions = await viewer.scene.clampToHeightMostDetailed(cartesians, objectsToExclude, 6);
+          } catch (e) {
+            clampedPositions = cartesians;
+          }
 
           let lineColor = C.Color.WHITE.withAlpha(0.9);
           if (isTrail) lineColor = C.Color.fromCssColorString('#00FF88');
@@ -589,15 +599,16 @@ export default function CesiumViewer() {
 
           const entity = viewer.entities.add({
             polyline: {
-              positions: C.Cartesian3.fromDegreesArray(positions),
+              positions: clampedPositions,
               width: isTrail ? 6 : 4,
               material: dashMaterial,
-              clampToGround: true,
-              classificationType: C.ClassificationType.BOTH,
+              depthFailMaterial: dashMaterial,
+              clampToGround: false,
             },
           });
           overlayLabelsRef.current.push(entity);
         });
+        await Promise.all(trailPromises);
 
         labeledFeatures.forEach((feature) => {
           const isPeak = feature.type === 'peak' || feature.type === 'saddle';
