@@ -4719,5 +4719,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/proxy/overpass", async (req: Request, res: Response) => {
+    try {
+      const { query } = req.body;
+      if (!query) return res.status(400).json({ error: "Missing query" });
+      const response = await fetch('https://overpass-api.de/api/interpreter', {
+        method: 'POST',
+        body: `data=${encodeURIComponent(query)}`,
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      });
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error('Overpass proxy error:', error);
+      res.status(500).json({ error: "Failed to fetch from Overpass API" });
+    }
+  });
+
+  app.get("/api/proxy/elevation", async (req: Request, res: Response) => {
+    try {
+      const { latitude, longitude } = req.query;
+      if (!latitude || !longitude) return res.status(400).json({ error: "Missing latitude/longitude" });
+      const response = await fetch(
+        `https://api.open-meteo.com/v1/elevation?latitude=${latitude}&longitude=${longitude}`
+      );
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error('Elevation proxy error:', error);
+      res.status(500).json({ error: "Failed to fetch elevation data" });
+    }
+  });
+
   return httpServer;
 }

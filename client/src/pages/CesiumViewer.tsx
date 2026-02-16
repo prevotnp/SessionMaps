@@ -484,7 +484,7 @@ export default function CesiumViewer() {
       let geoidOffset = 0;
       try {
         const centerEleRes = await fetch(
-          `https://api.open-meteo.com/v1/elevation?latitude=${lat.toFixed(5)}&longitude=${lon.toFixed(5)}`
+          `/api/proxy/elevation?latitude=${lat.toFixed(5)}&longitude=${lon.toFixed(5)}`
         );
         const centerEleJson = await centerEleRes.json();
         const centerGeoidEle = Array.isArray(centerEleJson.elevation) ? centerEleJson.elevation[0] : centerEleJson.elevation;
@@ -518,14 +518,22 @@ export default function CesiumViewer() {
       `;
 
       try {
-        const response = await fetch('https://overpass-api.de/api/interpreter', {
+        const response = await fetch('/api/proxy/overpass', {
           method: 'POST',
-          body: `data=${encodeURIComponent(query)}`,
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: JSON.stringify({ query }),
+          headers: { 'Content-Type': 'application/json' },
         });
+        if (!response.ok) {
+          console.error('[MapOverlay] Overpass proxy returned', response.status);
+          return;
+        }
         const data = await response.json();
+        if (!data.elements) {
+          console.error('[MapOverlay] No elements in Overpass response');
+          return;
+        }
 
-        console.log('[MapOverlay] Overpass response elements:', data.elements?.length || 0);
+        console.log('[MapOverlay] Overpass response elements:', data.elements.length);
 
         const nodesMap = new Map<number, { lat: number; lon: number }>();
         data.elements.forEach((el: any) => {
@@ -618,7 +626,7 @@ export default function CesiumViewer() {
           const lons = batch.map(c => c.lon.toFixed(5)).join(',');
           try {
             const res = await fetch(
-              `https://api.open-meteo.com/v1/elevation?latitude=${lats}&longitude=${lons}`
+              `/api/proxy/elevation?latitude=${lats}&longitude=${lons}`
             );
             if (res.ok) {
               const json = await res.json();
