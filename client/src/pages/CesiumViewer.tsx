@@ -580,7 +580,7 @@ export default function CesiumViewer() {
           );
 
           let lineColor = C.Color.WHITE.withAlpha(0.9);
-          if (isTrail) lineColor = C.Color.fromCssColorString('#00FF88').withAlpha(0.85);
+          if (isTrail) lineColor = C.Color.fromCssColorString('#00FF88');
           else if (isWater) lineColor = C.Color.fromCssColorString('#4FC3F7').withAlpha(0.85);
 
           const dashMaterial = new C.PolylineDashMaterialProperty({
@@ -592,7 +592,7 @@ export default function CesiumViewer() {
           const entity = viewer.entities.add({
             polyline: {
               positions: C.Cartesian3.fromDegreesArrayHeights(positions),
-              width: isTrail ? 3 : 2,
+              width: isTrail ? 6 : 4,
               material: dashMaterial,
               depthFailMaterial: dashMaterial,
               clampToGround: false,
