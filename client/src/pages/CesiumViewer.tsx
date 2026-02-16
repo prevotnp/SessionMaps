@@ -572,13 +572,76 @@ export default function CesiumViewer() {
         console.log('[MapOverlay] Labeled features:', labeledFeatures.length, 'Trail paths:', trailPaths.length);
         console.log('[MapOverlay] Tileset height:', tilesetHeight);
 
-        trailPaths.forEach((trail) => {
+        const mapboxToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+        const elevationCache = new Map<string, number>();
+
+        const getElevation = async (lat: number, lon: number): Promise<number> => {
+          const key = `${lat.toFixed(5)},${lon.toFixed(5)}`;
+          if (elevationCache.has(key)) return elevationCache.get(key)!;
+
+          try {
+            const res = await fetch(
+              `https://api.mapbox.com/v4/mapbox.mapbox-terrain-v2/tilequery/${lon},${lat}.json?layers=contour&access_token=${mapboxToken}`
+            );
+            const json = await res.json();
+            if (json.features?.length > 0) {
+              const ele = Math.max(...json.features.map((f: any) => f.properties.ele || 0));
+              elevationCache.set(key, ele);
+              return ele;
+            }
+          } catch (e) {}
+          elevationCache.set(key, tilesetHeight);
+          return tilesetHeight;
+        };
+
+        const getTrailElevations = async (coords: Array<{lat: number; lon: number}>) => {
+          const step = Math.max(1, Math.floor(coords.length / 8));
+          const sampledIndices: number[] = [];
+          for (let i = 0; i < coords.length; i += step) sampledIndices.push(i);
+          if (!sampledIndices.includes(coords.length - 1)) sampledIndices.push(coords.length - 1);
+
+          const sampledElevations = await Promise.all(
+            sampledIndices.map(async (idx) => ({
+              idx,
+              ele: await getElevation(coords[idx].lat, coords[idx].lon),
+            }))
+          );
+
+          const elevations: number[] = [];
+          for (let i = 0; i < coords.length; i++) {
+            let before = sampledElevations[0];
+            let after = sampledElevations[sampledElevations.length - 1];
+            for (let j = 0; j < sampledElevations.length - 1; j++) {
+              if (i >= sampledElevations[j].idx && i <= sampledElevations[j + 1].idx) {
+                before = sampledElevations[j];
+                after = sampledElevations[j + 1];
+                break;
+              }
+            }
+            if (before.idx === after.idx) {
+              elevations.push(before.ele);
+            } else {
+              const t = (i - before.idx) / (after.idx - before.idx);
+              elevations.push(before.ele + t * (after.ele - before.ele));
+            }
+          }
+          return elevations;
+        };
+
+        for (const trail of trailPaths) {
           const isTrail = ['path', 'track', 'footway', 'cycleway', 'trail'].includes(trail.type);
           const isPiste = trail.type === 'piste';
           const isWater = trail.type === 'stream' || trail.type === 'river';
 
-          const positions = trail.coords.flatMap(c =>
-            [c.lon, c.lat, tilesetHeight + 1]
+          let elevations: number[];
+          try {
+            elevations = await getTrailElevations(trail.coords);
+          } catch (e) {
+            elevations = trail.coords.map(() => tilesetHeight);
+          }
+
+          const positions = trail.coords.flatMap((c, i) =>
+            [c.lon, c.lat, elevations[i] + 1]
           );
 
           let lineColor = C.Color.WHITE.withAlpha(0.9);
@@ -602,9 +665,9 @@ export default function CesiumViewer() {
             },
           });
           overlayLabelsRef.current.push(entity);
-        });
+        }
 
-        labeledFeatures.forEach((feature) => {
+        for (const feature of labeledFeatures) {
           const isPeak = feature.type === 'peak' || feature.type === 'saddle';
           const isTrail = ['path', 'track', 'footway', 'cycleway', 'trail'].includes(feature.type);
           const isPiste = feature.type === 'piste';
@@ -639,9 +702,11 @@ export default function CesiumViewer() {
             fontSize = '12px';
           }
 
-          let surfaceHeight = tilesetHeight + 3;
+          let surfaceHeight: number;
           if (isPeak && feature.ele) {
             surfaceHeight = parseFloat(feature.ele) + 3;
+          } else {
+            surfaceHeight = (await getElevation(feature.lat, feature.lon)) + 3;
           }
 
           const position = C.Cartesian3.fromDegrees(feature.lon, feature.lat, surfaceHeight);
@@ -682,7 +747,7 @@ export default function CesiumViewer() {
             });
             overlayLabelsRef.current.push(peakDot);
           }
-        });
+        }
       } catch (err) {
         console.error('Failed to fetch map overlay data:', err);
       }
