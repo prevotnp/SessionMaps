@@ -576,7 +576,7 @@ export default function CesiumViewer() {
           const isWater = trail.type === 'stream' || trail.type === 'river';
 
           const positions = trail.coords.flatMap(c =>
-            [c.lon, c.lat, tilesetHeight + 2]
+            [c.lon, c.lat, tilesetHeight + 1]
           );
 
           let lineColor = C.Color.WHITE.withAlpha(0.9);
