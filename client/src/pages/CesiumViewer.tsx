@@ -576,7 +576,7 @@ export default function CesiumViewer() {
           const isWater = trail.type === 'stream' || trail.type === 'river';
 
           const positions = trail.coords.flatMap(c =>
-            [c.lon, c.lat, tilesetHeight + 10]
+            [c.lon, c.lat, tilesetHeight + 2]
           );
 
           let lineColor = C.Color.WHITE.withAlpha(0.9);
@@ -637,7 +637,7 @@ export default function CesiumViewer() {
             surfaceHeight = parseFloat(feature.ele);
           }
 
-          const clampedPosition = C.Cartesian3.fromDegrees(feature.lon, feature.lat, surfaceHeight + 15);
+          const clampedPosition = C.Cartesian3.fromDegrees(feature.lon, feature.lat, surfaceHeight + 3);
 
           const entity = viewer.entities.add({
             position: clampedPosition,
