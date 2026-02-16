@@ -575,20 +575,27 @@ export default function CesiumViewer() {
           const isTrail = ['path', 'track', 'footway', 'cycleway', 'trail'].includes(trail.type);
           const isWater = trail.type === 'stream' || trail.type === 'river';
 
-          const positions = trail.coords.map(c =>
-            C.Cartesian3.fromDegrees(c.lon, c.lat)
+          const positions = trail.coords.flatMap(c =>
+            [c.lon, c.lat, tilesetHeight + 1]
           );
 
           let lineColor = C.Color.WHITE.withAlpha(0.9);
           if (isTrail) lineColor = C.Color.fromCssColorString('#00FF88');
           else if (isWater) lineColor = C.Color.fromCssColorString('#4FC3F7').withAlpha(0.85);
 
+          const dashMaterial = new C.PolylineDashMaterialProperty({
+            color: lineColor,
+            dashLength: isTrail ? 16 : 12,
+            dashPattern: 255,
+          });
+
           const entity = viewer.entities.add({
             polyline: {
-              positions: positions,
+              positions: C.Cartesian3.fromDegreesArrayHeights(positions),
               width: isTrail ? 6 : 4,
-              material: new C.ColorMaterialProperty(lineColor),
-              clampToGround: true,
+              material: dashMaterial,
+              depthFailMaterial: dashMaterial,
+              clampToGround: false,
             },
           });
           overlayLabelsRef.current.push(entity);
@@ -624,14 +631,12 @@ export default function CesiumViewer() {
             fontSize = '12px';
           }
 
-          let position: any;
-          let heightRef = C.HeightReference.CLAMP_TO_GROUND;
+          let surfaceHeight = tilesetHeight + 3;
           if (isPeak && feature.ele) {
-            position = C.Cartesian3.fromDegrees(feature.lon, feature.lat, parseFloat(feature.ele) + 3);
-            heightRef = C.HeightReference.NONE;
-          } else {
-            position = C.Cartesian3.fromDegrees(feature.lon, feature.lat, 0);
+            surfaceHeight = parseFloat(feature.ele) + 3;
           }
+
+          const position = C.Cartesian3.fromDegrees(feature.lon, feature.lat, surfaceHeight);
 
           const entity = viewer.entities.add({
             position: position,
@@ -643,7 +648,7 @@ export default function CesiumViewer() {
               outlineWidth: 3,
               style: C.LabelStyle.FILL_AND_OUTLINE,
               disableDepthTestDistance: Number.POSITIVE_INFINITY,
-              heightReference: heightRef,
+              heightReference: C.HeightReference.NONE,
               verticalOrigin: C.VerticalOrigin.BOTTOM,
               pixelOffset: new C.Cartesian2(0, -8),
               scaleByDistance: new C.NearFarScalar(100, 1.5, 10000, 0.4),
@@ -664,7 +669,7 @@ export default function CesiumViewer() {
                 outlineColor: C.Color.BLACK,
                 outlineWidth: 2,
                 disableDepthTestDistance: Number.POSITIVE_INFINITY,
-                heightReference: heightRef,
+                heightReference: C.HeightReference.NONE,
               },
             });
             overlayLabelsRef.current.push(peakDot);
