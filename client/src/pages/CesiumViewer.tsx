@@ -572,60 +572,52 @@ export default function CesiumViewer() {
         console.log('[MapOverlay] Labeled features:', labeledFeatures.length, 'Trail paths:', trailPaths.length);
         console.log('[MapOverlay] Tileset height:', tilesetHeight);
 
-        const mapboxToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
         const elevationCache = new Map<string, number>();
 
-        const getElevation = async (lat: number, lon: number): Promise<number> => {
-          const key = `${lat.toFixed(5)},${lon.toFixed(5)}`;
-          if (elevationCache.has(key)) return elevationCache.get(key)!;
+        const batchGetElevations = async (coords: Array<{lat: number; lon: number}>): Promise<number[]> => {
+          const results: number[] = new Array(coords.length).fill(tilesetHeight);
+          const uncachedIndices: number[] = [];
 
-          try {
-            const res = await fetch(
-              `https://api.mapbox.com/v4/mapbox.mapbox-terrain-v2/tilequery/${lon},${lat}.json?layers=contour&access_token=${mapboxToken}`
-            );
-            const json = await res.json();
-            if (json.features?.length > 0) {
-              const ele = Math.max(...json.features.map((f: any) => f.properties.ele || 0));
-              elevationCache.set(key, ele);
-              return ele;
-            }
-          } catch (e) {}
-          elevationCache.set(key, tilesetHeight);
-          return tilesetHeight;
-        };
-
-        const getTrailElevations = async (coords: Array<{lat: number; lon: number}>) => {
-          const step = Math.max(1, Math.floor(coords.length / 8));
-          const sampledIndices: number[] = [];
-          for (let i = 0; i < coords.length; i += step) sampledIndices.push(i);
-          if (!sampledIndices.includes(coords.length - 1)) sampledIndices.push(coords.length - 1);
-
-          const sampledElevations = await Promise.all(
-            sampledIndices.map(async (idx) => ({
-              idx,
-              ele: await getElevation(coords[idx].lat, coords[idx].lon),
-            }))
-          );
-
-          const elevations: number[] = [];
-          for (let i = 0; i < coords.length; i++) {
-            let before = sampledElevations[0];
-            let after = sampledElevations[sampledElevations.length - 1];
-            for (let j = 0; j < sampledElevations.length - 1; j++) {
-              if (i >= sampledElevations[j].idx && i <= sampledElevations[j + 1].idx) {
-                before = sampledElevations[j];
-                after = sampledElevations[j + 1];
-                break;
-              }
-            }
-            if (before.idx === after.idx) {
-              elevations.push(before.ele);
+          coords.forEach((c, i) => {
+            const key = `${c.lat.toFixed(5)},${c.lon.toFixed(5)}`;
+            if (elevationCache.has(key)) {
+              results[i] = elevationCache.get(key)!;
             } else {
-              const t = (i - before.idx) / (after.idx - before.idx);
-              elevations.push(before.ele + t * (after.ele - before.ele));
+              uncachedIndices.push(i);
+            }
+          });
+
+          if (uncachedIndices.length === 0) return results;
+
+          const batchSize = 100;
+          for (let b = 0; b < uncachedIndices.length; b += batchSize) {
+            const batch = uncachedIndices.slice(b, b + batchSize);
+            const lats = batch.map(i => coords[i].lat.toFixed(5)).join(',');
+            const lons = batch.map(i => coords[i].lon.toFixed(5)).join(',');
+            try {
+              const res = await fetch(
+                `https://api.open-meteo.com/v1/elevation?latitude=${lats}&longitude=${lons}`
+              );
+              const json = await res.json();
+              if (json.elevation) {
+                const elevArr = Array.isArray(json.elevation) ? json.elevation : [json.elevation];
+                batch.forEach((origIdx, j) => {
+                  const ele = elevArr[j] ?? tilesetHeight;
+                  results[origIdx] = ele;
+                  const key = `${coords[origIdx].lat.toFixed(5)},${coords[origIdx].lon.toFixed(5)}`;
+                  elevationCache.set(key, ele);
+                });
+              }
+            } catch (e) {
+              console.warn('[MapOverlay] Elevation batch fetch failed:', e);
             }
           }
-          return elevations;
+          return results;
+        };
+
+        const getElevation = async (lat: number, lon: number): Promise<number> => {
+          const results = await batchGetElevations([{lat, lon}]);
+          return results[0];
         };
 
         for (const trail of trailPaths) {
@@ -635,7 +627,7 @@ export default function CesiumViewer() {
 
           let elevations: number[];
           try {
-            elevations = await getTrailElevations(trail.coords);
+            elevations = await batchGetElevations(trail.coords);
           } catch (e) {
             elevations = trail.coords.map(() => tilesetHeight);
           }
