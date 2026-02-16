@@ -610,24 +610,11 @@ export default function CesiumViewer() {
         });
         await Promise.all(trailPromises);
 
-        const nonPeakFeatures = labeledFeatures.filter(f => f.type !== 'peak' && f.type !== 'saddle');
-        const peakFeatures = labeledFeatures.filter(f => f.type === 'peak' || f.type === 'saddle');
-
-        const nonPeakPositions = nonPeakFeatures.map(f => C.Cartesian3.fromDegrees(f.lon, f.lat, 0));
-        let clampedNonPeakPositions = nonPeakPositions;
-        if (nonPeakPositions.length > 0) {
-          try {
-            clampedNonPeakPositions = await viewer.scene.clampToHeightMostDetailed(nonPeakPositions, [], 6);
-          } catch (e) {
-            console.warn('[MapOverlay] clampToHeight failed for labels, using fallback');
-          }
-        }
-
-        const addLabel = (feature: any, position: any) => {
+        labeledFeatures.forEach((feature) => {
+          const isPeak = feature.type === 'peak' || feature.type === 'saddle';
           const isTrail = ['path', 'track', 'footway', 'cycleway', 'trail'].includes(feature.type);
           const isRoad = ['primary', 'secondary', 'tertiary', 'residential', 'unclassified'].includes(feature.type);
           const isWater = feature.type === 'stream' || feature.type === 'river';
-          const isPeak = feature.type === 'peak' || feature.type === 'saddle';
 
           let labelColor = C.Color.WHITE;
           let fontSize = '14px';
@@ -653,6 +640,15 @@ export default function CesiumViewer() {
             fontSize = '12px';
           }
 
+          let position: any;
+          let heightRef = C.HeightReference.CLAMP_TO_GROUND;
+          if (isPeak && feature.ele) {
+            position = C.Cartesian3.fromDegrees(feature.lon, feature.lat, parseFloat(feature.ele) + 3);
+            heightRef = C.HeightReference.NONE;
+          } else {
+            position = C.Cartesian3.fromDegrees(feature.lon, feature.lat, 0);
+          }
+
           const entity = viewer.entities.add({
             position: position,
             label: {
@@ -663,7 +659,7 @@ export default function CesiumViewer() {
               outlineWidth: 3,
               style: C.LabelStyle.FILL_AND_OUTLINE,
               disableDepthTestDistance: Number.POSITIVE_INFINITY,
-              heightReference: C.HeightReference.NONE,
+              heightReference: heightRef,
               verticalOrigin: C.VerticalOrigin.BOTTOM,
               pixelOffset: new C.Cartesian2(0, -8),
               scaleByDistance: new C.NearFarScalar(100, 1.5, 10000, 0.4),
@@ -684,21 +680,11 @@ export default function CesiumViewer() {
                 outlineColor: C.Color.BLACK,
                 outlineWidth: 2,
                 disableDepthTestDistance: Number.POSITIVE_INFINITY,
-                heightReference: C.HeightReference.NONE,
+                heightReference: heightRef,
               },
             });
             overlayLabelsRef.current.push(peakDot);
           }
-        };
-
-        nonPeakFeatures.forEach((feature, i) => {
-          addLabel(feature, clampedNonPeakPositions[i]);
-        });
-
-        peakFeatures.forEach((feature) => {
-          const ele = feature.ele ? parseFloat(feature.ele) : tilesetHeight;
-          const pos = C.Cartesian3.fromDegrees(feature.lon, feature.lat, ele + 3);
-          addLabel(feature, pos);
         });
       } catch (err) {
         console.error('Failed to fetch map overlay data:', err);
