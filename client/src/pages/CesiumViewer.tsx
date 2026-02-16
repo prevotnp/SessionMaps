@@ -18,7 +18,8 @@ import {
   Maximize,
   Route as RouteIcon,
   List,
-  Mountain
+  Mountain,
+  Loader2
 } from 'lucide-react';
 import CesiumRouteBuilder from '@/components/CesiumRouteBuilder';
 import CesiumRouteSummaryPanel from '@/components/CesiumRouteSummaryPanel';
@@ -97,6 +98,7 @@ export default function CesiumViewer() {
   const [gpsActive, setGpsActive] = useState(false);
   const [gpsPosition, setGpsPosition] = useState<{ lat: number; lng: number; alt: number | null } | null>(null);
   const [mapOverlayActive, setMapOverlayActive] = useState(false);
+  const [mapOverlayLoading, setMapOverlayLoading] = useState(false);
 
   const [isRouteBuilderOpen, setIsRouteBuilderOpen] = useState(false);
   const [isRoutesListOpen, setIsRoutesListOpen] = useState(false);
@@ -461,11 +463,12 @@ export default function CesiumViewer() {
   }, []);
 
   const toggleMapOverlay = useCallback(async () => {
-    if (!viewerRef.current || !tilesetRef.current) return;
+    if (!viewerRef.current || !tilesetRef.current || mapOverlayLoading) return;
     const viewer = viewerRef.current;
     const C = await loadCesium();
     const newState = !mapOverlayActive;
     setMapOverlayActive(newState);
+    if (newState) setMapOverlayLoading(true);
 
     if (newState) {
       const boundingSphere = tilesetRef.current.boundingSphere;
@@ -768,6 +771,8 @@ export default function CesiumViewer() {
         }
       } catch (err) {
         console.error('Failed to fetch map overlay data:', err);
+      } finally {
+        setMapOverlayLoading(false);
       }
     } else {
       overlayLabelsRef.current.forEach(entity => {
@@ -776,7 +781,7 @@ export default function CesiumViewer() {
       overlayLabelsRef.current = [];
     }
     viewer.scene.requestRender();
-  }, [mapOverlayActive]);
+  }, [mapOverlayActive, mapOverlayLoading]);
 
   useEffect(() => {
     return () => {
@@ -936,11 +941,18 @@ export default function CesiumViewer() {
         )}
 
         <button
-          className={`flex flex-col items-center justify-center w-16 h-16 rounded-lg bg-gray-900/80 border text-white hover:bg-gray-800 transition-colors ${mapOverlayActive ? 'ring-2 ring-emerald-400 border-emerald-400' : 'border-white/20'}`}
+          className={`flex flex-col items-center justify-center w-16 h-16 rounded-lg bg-gray-900/80 border text-white hover:bg-gray-800 transition-colors ${mapOverlayActive ? 'ring-2 ring-emerald-400 border-emerald-400' : 'border-white/20'} ${mapOverlayLoading ? 'opacity-75 cursor-wait' : ''}`}
           onClick={toggleMapOverlay}
+          disabled={mapOverlayLoading}
         >
-          <Layers className={`w-5 h-5 mb-0.5 ${mapOverlayActive ? 'text-emerald-400' : ''}`} />
-          <span className="text-[10px] font-medium leading-tight text-center whitespace-pre-line">{'Map\nOverlay'}</span>
+          {mapOverlayLoading ? (
+            <Loader2 className="w-5 h-5 mb-0.5 text-emerald-400 animate-spin" />
+          ) : (
+            <Layers className={`w-5 h-5 mb-0.5 ${mapOverlayActive ? 'text-emerald-400' : ''}`} />
+          )}
+          <span className="text-[10px] font-medium leading-tight text-center whitespace-pre-line">
+            {mapOverlayLoading ? 'Loading...' : 'Map\nOverlay'}
+          </span>
         </button>
 
         <div className="border-t border-white/10 pt-1.5 flex flex-col gap-1.5 w-full">
